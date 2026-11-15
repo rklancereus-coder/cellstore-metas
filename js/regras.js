@@ -15,7 +15,7 @@ const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julh
 export const nomeMes = m => { const t = `${MESES[+m.slice(5, 7) - 1]} de ${m.slice(0, 4)}`; return t[0].toUpperCase() + t.slice(1); };
 export const mesMais = (m, k) => { const a = +m.slice(0, 4), b = +m.slice(5, 7) - 1 + k, y = a + Math.floor(b / 12), mm = ((b % 12) + 12) % 12; return `${y}-${String(mm + 1).padStart(2, "0")}-01`; };
 export function diasMes(m) { const r = []; let d = m; while (d.slice(0, 7) === m.slice(0, 7)) { r.push(d); d = addDias(d, 1); } return r; }
-export const ehRede = ctx => ["dona", "admin"].includes(ctx.papel);
+export const ehRede = ctx => ["gestao", "admin"].includes(ctx.papel);
 
 /* d = dados crus do banco (metasMes); ctx = { hoje, papel, lojaId, lojas:[{id,nome,ativa}] } */
 export function montar(mes, d, ctx) {

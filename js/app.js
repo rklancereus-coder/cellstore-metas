@@ -1,9 +1,9 @@
 /* ---------- METAS CELL STORE (app separado do Portal) ----------
    Gerente (login da loja): abre no fechamento do dia; painel da loja embaixo.
-   Dona e administrador: visão das lojas, metas em lote, calendário, avisos, relatório.
+   Gestão e Admin: visão das lojas, metas em lote, calendário, avisos, relatório.
    Telas por endereço (#/…): o "voltar" do celular anda um passo, como nos outros apps. */
-import * as MR from "./regras.js?v=202611151205";
-import { criarApi, hoje } from "./api.js?v=202611151205";
+import * as MR from "./regras.js?v=202611151221";
+import { criarApi, hoje } from "./api.js?v=202611151221";
 
 const api = criarApi(window.CONFIG);
 const $ = id => document.getElementById(id);
@@ -28,7 +28,7 @@ const instalado = () => matchMedia("(display-mode: standalone)").matches || navi
 /* ---------- estado ---------- */
 const S = { perfil: null, lojas: [], mes: hoje().slice(0, 7) + "-01", dados: null, carregando: null, edicao: null, cache: { d: null, L: null }, foco: null };
 const papel = () => S.perfil && S.perfil.papel;
-const ehRede = () => ["dona", "admin"].includes(papel());
+const ehRede = () => ["gestao", "admin"].includes(papel());
 const ctx = () => ({ hoje: hoje(), papel: papel(), lojaId: S.perfil && S.perfil.loja_id, lojas: S.lojas });
 const mesAtual = () => hoje().slice(0, 7) + "-01";
 const lojaPor = id => S.dados.lojas.find(l => l.id === id);
@@ -84,14 +84,14 @@ async function telaLogin() {
       <label class="f"><span>Senha</span><input id="senha" type="password" autocomplete="current-password" required></label>
       <p class="err" id="lerr" hidden></p>
       <button class="btn primary" id="bentrar">Entrar</button>
-      ${api.modo === "demo" ? `<p class="hint" style="margin:0">Demonstração: lojas com a senha 1234 · dona/dona · admin/admin.</p>` : ""}
+      ${api.modo === "demo" ? `<p class="hint" style="margin:0">Demonstração: lojas com a senha 1234 · gestao/gestao · admin/admin.</p>` : ""}
     </form>
     <button class="soft mini instalar" hidden>${ICON.instalar}Instalar o app</button></div>`;
   mostrarInstalar();
   const e = m => { $("lerr").textContent = m; $("lerr").hidden = false; };
   try {
     const L = await api.logins(), ult = ls.get("metas-ultimo") || "";
-    const grupos = [["loja", "Lojas"], ["dona", "Rede"], ["admin", "Administração"]];
+    const grupos = [["loja", "Lojas"], ["gestao", "Gestão"], ["admin", "Admin"]];
     $("ucampo").innerHTML = `<span>Quem está entrando?</span><select id="usuario" required><option value="">Escolha na lista</option>${grupos.map(([p, n]) => { const g = L.filter(x => x.papel === p); return g.length ? `<optgroup label="${n}">${g.map(x => `<option value="${esc(x.usuario)}" ${x.usuario === ult ? "selected" : ""}>${esc(x.nome)}</option>`).join("")}</optgroup>` : ""; }).join("")}</select>`;
   } catch (er) { $("ucampo").innerHTML = `<span>Usuário</span><input id="usuario" autocomplete="username" autocapitalize="none" placeholder="Ex.: loja03" required>`; }
   $("flogin").onsubmit = async ev => {
@@ -132,7 +132,7 @@ function diasLoja(l, rede) {
   }).join("");
   return `<div class="dias dias2">${cel || `<span class="hint">Nenhum dia de venda neste mês.</span>`}</div>
   <div class="leg-dias"><span style="--c:var(--g-soft)">✓ Fechado</span><span style="--c:var(--a-soft)">↺ Corrigido</span><span style="--c:var(--r-soft)">! Pendente</span><span style="--c:var(--accent-soft)">• Hoje</span></div>
-  <p class="hint" style="margin:0">${rede ? "Toque num dia para lançar, corrigir ou reabrir para o gerente." : "Dia fechado não muda mais. Se precisar corrigir, peça à dona para reabrir."}</p>`;
+  <p class="hint" style="margin:0">${rede ? "Toque num dia para lançar, corrigir ou reabrir para o gerente." : "Dia fechado não muda mais. Se precisar corrigir, peça à gestão para reabrir."}</p>`;
 }
 function listaAvisos(L, { max = 0, agrupar = false } = {}) {
   if (!L.length) return `<p class="vazio">Nenhum aviso agora.</p>`;
@@ -185,7 +185,7 @@ function painelLoja(l, rede) {
   </div>
   ${avL.length ? `<section class="sec"><h2>Avisos da loja <small>${avL.length}</small></h2>${listaAvisos(avL, { max: 3 })}</section>` : ""}
   ${sem ? "" : `<section class="sec"><h2>Por categoria</h2><div class="painel cats">${cat("Assistência", c.a)}${cat("Vendas", c.v)}</div></section>`}
-  <section class="sec"><h2>Vendedores</h2>${l.vend.length ? `<div class="vends">${l.vend.map(v => cardVend(v, l)).join("")}</div>` : `<p class="vazio">${rede ? `Nenhum vendedor cadastrado. <button class="link" data-a="ir" data-h="#/metas" style="padding:0;color:var(--accent)">Cadastrar em Metas</button>` : "A dona ainda não cadastrou os vendedores desta loja."}</p>`}</section>
+  <section class="sec"><h2>Vendedores</h2>${l.vend.length ? `<div class="vends">${l.vend.map(v => cardVend(v, l)).join("")}</div>` : `<p class="vazio">${rede ? `Nenhum vendedor cadastrado. <button class="link" data-a="ir" data-h="#/metas" style="padding:0;color:var(--accent)">Cadastrar em Metas</button>` : "A gestão ainda não cadastrou os vendedores desta loja."}</p>`}</section>
   <section class="sec"><h2>Fechamentos do mês</h2><div class="painel">${diasLoja(l, rede)}</div></section>`;
 }
 
@@ -197,7 +197,7 @@ function telaGerente() {
   let topo = "";
   if (S.mes === mesAtual()) {
     const fila = filaLancar(l), ativos = l.vend.some(v => v.ativo), ult = l.fechados[l.n - 1];
-    if (!ativos) topo = `<div class="aviso"><b>Ainda sem vendedores.</b> A dona precisa cadastrar os vendedores desta loja para o fechamento funcionar.</div>`;
+    if (!ativos) topo = `<div class="aviso"><b>Ainda sem vendedores.</b> A gestão precisa cadastrar os vendedores desta loja para o fechamento funcionar.</div>`;
     else if (fila.length) topo = `<div class="status"><button class="btn primary bigbtn" data-a="ir" data-h="#/lancar">${ICON.ok} ${fila[0] === S.dados.hj ? "Fechar o dia de hoje" : `Lançar ${data(fila[0])}`}</button>
       <p class="${l.pend.length ? "txt-r" : "hint"}" style="margin:0;font-weight:700;text-align:center">${l.pend.length ? `${l.pend.length} dia${l.pend.length > 1 ? "s" : ""} atrasado${l.pend.length > 1 ? "s" : ""} · comece pelo mais antigo` : "Leva 1 minuto: Assistência e Vendas de cada vendedor."}</p></div>`;
     else topo = `<div class="status ok">${ICON.ok}<div><b>Tudo em dia</b><span>${ult ? `Último fechamento: ${data(ult)} · ${R(MR.totDia(l, ult))}` : "Nenhum dia para lançar agora."}</span></div></div>`;
@@ -221,7 +221,7 @@ function telaLancar() {
   return `${cabeca(atras ? "Fechamento atrasado" : "Fechamento de hoje", { voltar: true, mes: false })}
   <div class="lanc">
     <p class="lead" style="margin:0">${data(dia)} · ${esc(l.nome)}${fila.length > 1 ? ` · <b>dia 1 de ${fila.length} para lançar</b>` : ""}</p>
-    ${f && f.status === "aberto" ? `<div class="aviso"><b>A dona reabriu este dia.</b> Confira os valores e feche de novo.</div>` : ""}
+    ${f && f.status === "aberto" ? `<div class="aviso"><b>A gestão reabriu este dia.</b> Confira os valores e feche de novo.</div>` : ""}
     ${vs.map((v, i) => `<div class="lv"><h3>${esc(v.nome)} <span id="sub-${v.id}">${R(num(r[v.id].a) + num(r[v.id].v))}</span></h3>
       <div class="row"><label class="f"><span>Assistência</span><div class="din"><input id="in-${i}-a" inputmode="decimal" enterkeyhint="next" placeholder="0" data-lv="${v.id}" data-k="a" value="${esc(r[v.id].a || "")}"></div></label>
       <label class="f"><span>Vendas</span><div class="din"><input id="in-${i}-v" inputmode="decimal" enterkeyhint="${i === vs.length - 1 ? "done" : "next"}" placeholder="0" data-lv="${v.id}" data-k="v" value="${esc(r[v.id].v || "")}"></div></label></div></div>`).join("")}
@@ -243,7 +243,7 @@ function confirmarFechar() {
     <div class="linha-v tot"><span>Total</span><span>${R(tot)}</span></div></div>
     ${!tot ? `<div class="aviso"><b>Tudo zerado.</b> A loja não vendeu nada neste dia?</div>` : ""}
     ${estranhos.length ? `<div class="aviso"><b>Confira esses valores:</b><br>${estranhos.join("<br>")}</div>` : ""}
-    <p class="hint" style="margin:0">Depois de fechado, só a dona pode reabrir.</p>
+    <p class="hint" style="margin:0">Depois de fechado, só a gestão pode reabrir.</p>
     <div class="nav"><button class="btn soft" id="mno">Corrigir</button><button class="btn primary" id="mok">${!tot ? "Fechar com zero" : "Fechar o dia"}</button></div>`, () => {
     $("mno").onclick = fecharModal;
     $("mok").onclick = async () => {
@@ -260,7 +260,7 @@ function confirmarFechar() {
   });
 }
 
-/* ---------- dona: um dia de uma loja ---------- */
+/* ---------- gestão: um dia de uma loja ---------- */
 function diaRede(l, dia) {
   const f = l.fech.get(dia), fechado = f && f.status === "fechado", vs = l.vend.filter(v => v.ativo || v.val.has(dia));
   if (!vs.length) return toast("Cadastre os vendedores desta loja primeiro (Metas).", 4000);
@@ -281,7 +281,7 @@ function diaRede(l, dia) {
   });
 }
 
-/* ---------- dona: visão da rede ---------- */
+/* ---------- gestão: visão da rede ---------- */
 function grafico() {
   const D = S.dados, N = D.diasG.length, r = MR.contaRede(D).tot, W = 600, H = 250, ml = 52, mr = 12, mt = 12, mb = 28;
   if (!N || !r.meta) return `<p class="hint">Cadastre as metas para ver o gráfico.</p>`;
@@ -345,7 +345,7 @@ function relatorio() {
   }, "box-rel");
 }
 
-/* ---------- dona: metas em lote ---------- */
+/* ---------- gestão: metas em lote ---------- */
 const sujo = () => !!S.edicao && Object.keys(S.edicao.lojas).length + Object.keys(S.edicao.vend).length + Object.keys(S.edicao.nomes).length > 0;
 const nSujo = () => S.edicao ? Object.keys(S.edicao.lojas).length + Object.keys(S.edicao.vend).length + Object.keys(S.edicao.nomes).length : 0;
 const txtSujo = () => { const n = nSujo(); return `${n} ${n > 1 ? "alterações" : "alteração"} sem salvar`; };
@@ -382,7 +382,7 @@ function telaMetas() {
   <div class="painel"><div class="cal">${MR.SEM.map(s => `<span class="ds">${s}</span>`).join("")}${"<span></span>".repeat(pad)}${D.dias.map(d => { const ab = D.calG.has(d) ? D.calG.get(d) : MR.dow(d) !== 0; return `<button class="${ab ? "on" : ""}" data-a="cal" data-dia="${d}" title="${ab ? "Loja abre" : "Fechado"}">${+d.slice(8)}</button>`; }).join("")}</div>
   <p class="hint" style="margin:0">Sem marcação, vale segunda a sábado. A meta por dia e a previsão usam só os dias abertos.</p></div></section>
   <section class="sec"><details class="painel"><summary><b>Limites dos avisos</b> <small class="hint">(ajuste fino)</small></summary><div class="lim" style="margin-top:10px">${lims.map(k => `<span>${esc(cfgDesc.get(k) || k)}</span><input inputmode="decimal" data-cfg="${k}" value="${String(D.cfg[k]).replace(".", ",")}">`).join("")}</div></details></section>
-  ${papel() === "admin" ? `<section class="sec"><details class="painel" id="acessos"><summary><b>Acessos da dona</b> <small class="hint">(só administrador)</small></summary><div id="acessos-corpo" style="margin-top:10px"><p class="hint">Carregando…</p></div></details></section>` : ""}`;
+  ${papel() === "admin" ? `<section class="sec"><details class="painel" id="acessos"><summary><b>Acessos da Gestão</b> <small class="hint">(só Admin)</small></summary><div id="acessos-corpo" style="margin-top:10px"><p class="hint">Carregando…</p></div></details></section>` : ""}`;
 }
 function atualizarResumo(lojaId) {
   const el = $("res-" + lojaId); if (el) el.innerHTML = resumoLoja(lojaPor(lojaId));
@@ -399,14 +399,14 @@ async function salvarMetas() {
 async function acessos() {
   const corpo = $("acessos-corpo"); if (!corpo) return;
   try {
-    const U = (await api.usuarios("listar")).filter(u => u.papel === "dona");
-    corpo.innerHTML = `${U.length ? U.map(u => `<div class="linha-v"><span><b>${esc(u.nome)}</b> <small class="hint">${esc(u.usuario)}${u.ativo ? "" : " · desativado"}</small></span><button class="mini soft" data-a="ativo" data-id="${u.id}" data-ativo="${u.ativo ? 0 : 1}">${u.ativo ? "Desativar" : "Reativar"}</button></div>`).join("") : `<p class="hint" style="margin:0">Nenhum acesso de dona ainda.</p>`}
-      <form id="fdona" class="row" style="margin-top:12px"><label class="f"><span>Usuário</span><input id="dusu" autocapitalize="none" placeholder="ex.: dona" required></label><label class="f"><span>Nome</span><input id="dnome" placeholder="Nome dela" required></label>
+    const U = (await api.usuarios("listar")).filter(u => u.papel === "gestao");
+    corpo.innerHTML = `${U.length ? U.map(u => `<div class="linha-v"><span><b>${esc(u.nome)}</b> <small class="hint">${esc(u.usuario)}${u.ativo ? "" : " · desativado"}</small></span><button class="mini soft" data-a="ativo" data-id="${u.id}" data-ativo="${u.ativo ? 0 : 1}">${u.ativo ? "Desativar" : "Reativar"}</button></div>`).join("") : `<p class="hint" style="margin:0">Nenhum acesso de Gestão ainda.</p>`}
+      <form id="fdona" class="row" style="margin-top:12px"><label class="f"><span>Usuário</span><input id="dusu" autocapitalize="none" placeholder="ex.: gestao" required></label><label class="f"><span>Nome</span><input id="dnome" placeholder="Nome" required></label>
       <label class="f"><span>Senha (mín. 6)</span><input id="dsen" type="password" minlength="6" autocomplete="new-password" required></label><span style="align-self:end"><button class="btn primary">Criar acesso</button></span></form>
       <p class="hint" style="margin:6px 0 0">Os gerentes entram com o login da própria loja (o mesmo do Portal).</p>`;
     $("fdona").onsubmit = async ev => {
       ev.preventDefault();
-      try { await api.usuarios("criar", { papel: "dona", loja_id: null, usuario: $("dusu").value.trim().toLowerCase(), nome: $("dnome").value.trim(), senha: $("dsen").value }); toast("Acesso criado"); acessos(); }
+      try { await api.usuarios("criar", { papel: "gestao", loja_id: null, usuario: $("dusu").value.trim().toLowerCase(), nome: $("dnome").value.trim(), senha: $("dsen").value }); toast("Acesso criado"); acessos(); }
       catch (e) { erro(e); }
     };
   } catch (e) { corpo.innerHTML = `<p class="err">${esc(e.message)}</p>`; }

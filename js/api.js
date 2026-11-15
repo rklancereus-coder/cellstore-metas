@@ -1,7 +1,7 @@
 /* Acesso aos dados. Duas versões com as mesmas funções:
    - Supabase (de verdade): o banco decide o que cada papel vê e grava (banco/banco.sql);
    - demonstração (?demo): tudo no próprio aparelho, com dados de exemplo e as mesmas regras. */
-import * as MR from "./regras.js?v=202611151205";
+import * as MR from "./regras.js?v=202611151221";
 
 export const hoje = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
@@ -29,7 +29,7 @@ function apiSupabase(cfg) {
     const { data } = await sb.auth.getUser();
     if (!data || !data.user) return null;
     const p = ok(await sb.from("perfis").select("id, usuario, nome, papel, loja_id, ativo").eq("id", data.user.id).maybeSingle());
-    if (!p || !p.ativo || !["loja", "dona", "admin"].includes(p.papel)) { await sb.auth.signOut(); return null; }
+    if (!p || !p.ativo || !["loja", "gestao", "admin"].includes(p.papel)) { await sb.auth.signOut(); return null; }
     perfilId = p.id; return p;
   }
   async function funcao(nome, corpo) {
@@ -41,13 +41,13 @@ function apiSupabase(cfg) {
   return {
     modo: "supabase",
     sessao: perfilAtual,
-    async logins() { return ok(await sb.rpc("logins_ativos")).filter(l => ["loja", "dona", "admin"].includes(l.papel)); },
+    async logins() { return ok(await sb.rpc("logins_ativos")).filter(l => ["loja", "gestao", "admin"].includes(l.papel)); },
     async entrar(usuario, senha) {
       const u = String(usuario).trim().toLowerCase();
       try { ok(await sb.auth.signInWithPassword({ email: u.includes("@") ? u : `${u}@${cfg.dominioLogin}`, password: senha })); }
       catch (e) { throw e; }
       const p = await perfilAtual();
-      if (!p) throw new Error("Este acesso não usa o app de metas (só lojas, dona e administrador).");
+      if (!p) throw new Error("Este acesso não usa o app de metas (só lojas, Gestão e Admin).");
       return p;
     },
     async sair() { await sb.auth.signOut(); },
@@ -101,7 +101,7 @@ function apiSupabase(cfg) {
 
 /* ===================== DEMONSTRAÇÃO ===================== */
 function apiDemo() {
-  const KEY = "metas-demo-v1";
+  const KEY = "metas-demo-v2";
   let db = (() => { try { const r = lsGet(KEY); if (r) return JSON.parse(r); } catch (e) { } return null; })() || semente();
   const gravar = () => lsSet(KEY, JSON.stringify(db));
   const ouvintes = [];
@@ -114,8 +114,8 @@ function apiDemo() {
     const nomes = ["Loja ON", "Loja 01", "Loja 02", "Loja 03", "Loja 04", "Loja 05", "Loja 06", "Loja 07"];
     const lojas = nomes.map((n, i) => ({ id: "L" + i, nome: n, ativa: true, ordem: i, online: i === 0 }));
     const usuarios = [...lojas.map(l => ({ id: "U" + l.id, usuario: l.nome === "Loja ON" ? "lojaon" : "loja" + l.nome.slice(-2), senha: "1234", nome: l.nome, papel: "loja", loja_id: l.id, ativo: true })),
-      { id: "UD", usuario: "dona", senha: "dona", nome: "Dona da rede", papel: "dona", loja_id: null, ativo: true },
-      { id: "UA", usuario: "admin", senha: "admin", nome: "Administrador", papel: "admin", loja_id: null, ativo: true }];
+      { id: "UD", usuario: "gestao", senha: "gestao", nome: "Gestão da rede", papel: "gestao", loja_id: null, ativo: true },
+      { id: "UA", usuario: "admin", senha: "admin", nome: "Admin", papel: "admin", loja_id: null, ativo: true }];
     const PL = [[["Camila", 1.05, 1], ["Diego", .95, 1.02]], [["Juliana", 1.02, 1.1], ["Rafael", .8, .7]], [["Patrícia", 1.4, .8], ["Marcos", 1, 1]], [["Fernanda", 1.35, 1.4], ["Lucas", .9, .95]],
       [["Aline", 1, 1.08], ["Gustavo", .85, .9], ["Thiago", .25, .3, 1]], [["Bruna", 1.1, 1], ["Felipe", .3, .35]], [["Larissa", 1, 1.05], ["Rodrigo", .95, .9]], [["Vanessa", 1, .95], ["Eduardo", 1.05, 1]]];
     const atraso = { L5: 1, L7: 2 }, mes = hoje().slice(0, 7) + "-01", ant = MR.mesMais(mes, -1);
@@ -151,7 +151,7 @@ function apiDemo() {
     async sair() { db.sessao = null; gravar(); },
     async lojas() { return db.lojas; },
     async metasMes(mes) {
-      const u = exigir("loja", "dona", "admin"), fim = MR.addDias(MR.mesMais(mes, 1), -1), noMes = d => d >= mes && d <= fim;
+      const u = exigir("loja", "gestao", "admin"), fim = MR.addDias(MR.mesMais(mes, 1), -1), noMes = d => d >= mes && d <= fim;
       const vejo = l => u.papel !== "loja" || l === u.loja_id, vendLoja = id => (db.vendedores.find(v => v.id === id) || {}).loja_id;
       const fech = db.fech.filter(f => noMes(f.dia) && vejo(f.loja_id)), ids = new Set(fech.map(f => f.id));
       return { vendedores: db.vendedores.filter(v => vejo(v.loja_id)), metasLoja: db.metasLoja.filter(x => x.mes === mes && vejo(x.loja_id)), metasVend: db.metasVend.filter(x => x.mes === mes && vejo(vendLoja(x.vendedor_id))),
@@ -160,11 +160,11 @@ function apiDemo() {
         corr: db.corr.filter(c => ids.has(c.fechamento_id)), config: db.config, vistos: db.vistos.filter(v => v.perfil_id === u.id), proximoTemMetas: db.metasLoja.some(x => x.mes === MR.mesMais(mes, 1)) };
     },
     async fecharDia(loja, dia, valores) {
-      const u = exigir("loja", "dona", "admin"), rede = u.papel !== "loja";
+      const u = exigir("loja", "gestao", "admin"), rede = u.papel !== "loja";
       if (!rede && loja !== u.loja_id) throw new Error("Só dá para lançar o fechamento da sua loja.");
       if (dia > hoje()) throw new Error("Esse dia ainda não chegou.");
       let f = db.fech.find(x => x.loja_id === loja && x.dia === dia);
-      if (f && f.status === "fechado" && !rede) throw new Error("Esse dia já está fechado. Só a dona pode reabrir.");
+      if (f && f.status === "fechado" && !rede) throw new Error("Esse dia já está fechado. Só a gestão pode reabrir.");
       const ja = f && (f.status === "fechado" || f.reaberto_em);
       if (!f) { f = { id: loja + dia, loja_id: loja, dia, status: "aberto", fechado_em: null, reaberto_em: null }; db.fech.push(f); }
       for (const x of valores) {
@@ -176,23 +176,23 @@ function apiDemo() {
       }
       f.status = "fechado"; f.fechado_em = new Date().toISOString(); mudou(); return f.id;
     },
-    async reabrirDia(loja, dia) { exigir("dona", "admin"); const f = db.fech.find(x => x.loja_id === loja && x.dia === dia && x.status === "fechado"); if (!f) throw new Error("Esse dia não está fechado."); f.status = "aberto"; f.reaberto_em = new Date().toISOString(); mudou(); },
+    async reabrirDia(loja, dia) { exigir("gestao", "admin"); const f = db.fech.find(x => x.loja_id === loja && x.dia === dia && x.status === "fechado"); if (!f) throw new Error("Esse dia não está fechado."); f.status = "aberto"; f.reaberto_em = new Date().toISOString(); mudou(); },
     async copiarMetas(de, para) {
-      exigir("dona", "admin"); let n = 0;
+      exigir("gestao", "admin"); let n = 0;
       db.metasLoja.filter(x => x.mes === de).forEach(x => { if (!db.metasLoja.some(y => y.mes === para && y.loja_id === x.loja_id)) { db.metasLoja.push({ ...x, mes: para }); n++; } });
       db.metasVend.filter(x => x.mes === de && (db.vendedores.find(v => v.id === x.vendedor_id) || {}).ativo).forEach(x => { if (!db.metasVend.some(y => y.mes === para && y.vendedor_id === x.vendedor_id)) { db.metasVend.push({ ...x, mes: para }); n++; } });
       mudou(); return n;
     },
-    async salvarVendedor(v) { exigir("dona", "admin"); if (v.id) Object.assign(db.vendedores.find(x => x.id === v.id), v); else db.vendedores.push({ id: "V" + uid(), ativo: true, ordem: 0, ...v }); mudou(); },
+    async salvarVendedor(v) { exigir("gestao", "admin"); if (v.id) Object.assign(db.vendedores.find(x => x.id === v.id), v); else db.vendedores.push({ id: "V" + uid(), ativo: true, ordem: 0, ...v }); mudou(); },
     async salvarMetasLote(mes, lojas, vend, nomes) {
-      exigir("dona", "admin");
+      exigir("gestao", "admin");
       lojas.forEach(x => { const m = db.metasLoja.find(y => y.mes === mes && y.loja_id === x.loja_id); if (m) { m.assistencia = x.a; m.vendas = x.v; } else db.metasLoja.push({ mes, loja_id: x.loja_id, assistencia: x.a, vendas: x.v }); });
       vend.forEach(x => { db.metasVend = db.metasVend.filter(y => !(y.mes === mes && y.vendedor_id === x.vendedor_id)); if (x.m) db.metasVend.push({ mes, vendedor_id: x.vendedor_id, assistencia: x.m.a, vendas: x.m.v }); });
       nomes.forEach(n => { db.vendedores.find(v => v.id === n.id).nome = n.nome; });
       mudou();
     },
-    async salvarCalendario(dia, aberto) { exigir("dona", "admin"); db.cal = db.cal.filter(c => c.dia !== dia); db.cal.push({ dia, aberto }); mudou(); },
-    async salvarConfig(chave, valor) { exigir("dona", "admin"); db.config.find(c => c.chave === chave).valor = valor; mudou(); },
+    async salvarCalendario(dia, aberto) { exigir("gestao", "admin"); db.cal = db.cal.filter(c => c.dia !== dia); db.cal.push({ dia, aberto }); mudou(); },
+    async salvarConfig(chave, valor) { exigir("gestao", "admin"); db.config.find(c => c.chave === chave).valor = valor; mudou(); },
     async marcarVistos(lista) { const u = exigir(); lista.forEach(x => { db.vistos = db.vistos.filter(v => !(v.perfil_id === u.id && v.chave === x.chave)); db.vistos.push({ perfil_id: u.id, chave: x.chave, gravidade: x.g, visto_em: new Date().toISOString() }); }); mudou(); },
     async limparVistos() { const u = exigir(); db.vistos = db.vistos.filter(v => v.perfil_id !== u.id); mudou(); },
     async usuarios(acao, d = {}) {

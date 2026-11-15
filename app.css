@@ -343,3 +343,21 @@ header.top.topo{background:var(--ink);border:0;color:#fff}
 /* .num do Portal deixa cinza: aqui o número herda a cor (status continua colorido) */
 .mt .num:not(.t-g):not(.t-a):not(.t-r):not(.t-p){color:inherit}
 @media (max-width:720px){.mt .kpis3>div:last-child:nth-child(odd){grid-column:1/-1}}
+
+/* dias de venda (tela Metas): aberto = azul clarinho; fechado = riscado em vermelho */
+.mt section.cartao .cal button{background:#fff;color:var(--urg);text-decoration:line-through;text-decoration-thickness:2px;box-shadow:inset 0 0 0 1px var(--urg-soft);font-family:var(--display)}
+.mt section.cartao .cal button.on{background:#e3f0fb;color:#11558f;text-decoration:none;box-shadow:none}
+.mt section.cartao .cal button:hover{filter:brightness(.97)}
+.mt .leg-cal{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;font-weight:600;margin-top:10px}
+.mt .leg-cal .ab{color:#11558f}
+.mt .leg-cal .fe{color:var(--urg);text-decoration:line-through}
+/* configurações: acessos */
+.mt .acessos2{display:grid}
+.mt .acessos2 .ac{display:grid;grid-template-columns:30px minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.mt .acessos2 .ac:first-child{border-top:0;padding-top:0}
+.mt .acessos2 .n b{display:block;font-size:14px}
+.mt .acessos2 .n small{color:var(--muted);font-size:12px}
+.mt .novo-acesso{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px;align-items:end;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.mt .novo-acesso .rotulo{grid-column:1/-1}
+.mt .novo-acesso input{padding:10px 12px;font-size:14px}
+@media (max-width:720px){.mt .novo-acesso{grid-template-columns:minmax(0,1fr)}.mt .acessos2 .ac{grid-template-columns:30px minmax(0,1fr) auto}.mt .acessos2 .ac .fant{grid-column:2/-1;justify-self:start}}

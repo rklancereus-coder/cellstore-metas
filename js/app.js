@@ -2,8 +2,8 @@
    Gerente (login da loja): abre no fechamento do dia; painel da loja embaixo.
    Gestão e Admin: visão das lojas, metas em lote, calendário, avisos, relatório.
    Telas por endereço (#/…): o "voltar" do celular anda um passo, como nos outros apps. */
-import * as MR from "./regras.js?v=202611151830";
-import { criarApi, hoje } from "./api.js?v=202611151830";
+import * as MR from "./regras.js?v=202611151853";
+import { criarApi, hoje } from "./api.js?v=202611151853";
 
 const api = criarApi(window.CONFIG);
 const $ = id => document.getElementById(id);
@@ -33,6 +33,7 @@ const instalado = () => matchMedia("(display-mode: standalone)").matches || navi
 const S = { perfil: null, lojas: [], mes: hoje().slice(0, 7) + "-01", dados: null, carregando: null, edicao: null, cache: { d: null, L: null }, foco: null };
 const papel = () => S.perfil && S.perfil.papel;
 const ehRede = () => ["gestao", "admin"].includes(papel());
+const podeEditar = () => papel() === "gestao";   // metas, vendedoras, saldo, dias de venda e correções
 const ctx = () => ({ hoje: hoje(), papel: papel(), lojaId: S.perfil && S.perfil.loja_id, lojas: S.lojas });
 const mesAtual = () => hoje().slice(0, 7) + "-01";
 const lojaPor = id => S.dados.lojas.find(l => l.id === id);
@@ -156,7 +157,7 @@ function listaAvisos(L, { max = 0, agrupar = false } = {}) {
   if (!L.length) return `<p class="vazio">Nenhum aviso agora.</p>`;
   S.listaAv = L;
   const item = (x, i) => `<div class="av2 ${x.nivel}"><span class="ic" aria-hidden="true"></span><div class="tx"><b>${esc(x.titulo)}</b><p>${esc(x.texto)}</p></div>
-    <div class="acoes">${x.alvo && (x.alvo.loja || (x.alvo.aba && ehRede())) ? `<button class="bt fant" data-a="av-ir" data-i="${i}">Ver</button>` : ""}<button class="bt fant cinza" data-a="av-visto" data-i="${i}">Visto</button></div></div>`;
+    <div class="acoes">${x.alvo && (x.alvo.loja || (x.alvo.aba && podeEditar())) ? `<button class="bt fant" data-a="av-ir" data-i="${i}">Ver</button>` : ""}<button class="bt fant cinza" data-a="av-visto" data-i="${i}">Visto</button></div></div>`;
   if (!agrupar) return `<div class="avisos2">${(max ? L.slice(0, max) : L).map(item).join("")}</div>${max && L.length > max ? `<button class="bt fant" data-a="ir" data-h="#/avisos" style="margin-top:6px">Ver todos os ${L.length} avisos</button>` : ""}`;
   return [["r", "Urgentes"], ["a", "Atenção"], ["g", "Boas notícias"]].map(([n, t]) => { const g = L.map((x, i) => [x, i]).filter(([x]) => x.nivel === n); return g.length ? `<section class="sec cartao"><div class="cab2"><h2 class="grp2 ${n}">${t}</h2><span class="rotulo">${g.length}</span></div><div class="avisos2">${g.map(([x, i]) => item(x, i)).join("")}</div></section>` : ""; }).join("");
 }
@@ -192,7 +193,7 @@ function painelLoja(l, rede) {
   const cat = (nome, x, cor) => `<div class="cat2"><div class="l">${nome} <span>${R(x.real)} de ${R(x.meta)} · ${P(x.pct)}</span></div>${barra2(x, cor)}</div>`;
   const avL = avisos().filter(x => x.alvo && x.alvo.loja === l.id);
   const comecou = l.diasApp.length || l.ate, meio = S.mes === mesAtual() && l.vend.some(v => v.ativo) && l.pend.length >= 3 && !comecou;
-  const saldoBox = rede && S.mes === mesAtual() ? (l.ate
+  const saldoBox = podeEditar() && S.mes === mesAtual() ? (l.ate
       ? `<div class="saldo-nota">Σ Inclui o saldo de abertura até ${data(l.ate)}. <button class="link" data-a="saldo" data-loja="${l.id}">Ver ou mudar</button></div>`
       : meio ? `<div class="aviso" style="margin-bottom:14px"><b>Começando no meio do mês?</b> Lance o saldo de abertura: quanto cada vendedor já vendeu até ontem. Assim a loja não aparece zerada. <button class="mini primary" data-a="saldo" data-loja="${l.id}" style="margin-top:8px;display:block">Lançar saldo de abertura</button></div>` : "")
     : (l.ate ? `<div class="saldo-nota">Σ Inclui o saldo de abertura até ${data(l.ate)}.</div>` : "");
@@ -210,8 +211,8 @@ function painelLoja(l, rede) {
     </div>
   </section>
   ${avL.length ? `<section class="sec cartao"><div class="cab2"><h2>Avisos da loja</h2><span class="rotulo">${avL.length}</span></div>${listaAvisos(avL, { max: 3 })}</section>` : ""}
-  <section class="sec"><div class="cab2"><h2>Vendedores</h2></div>${l.vend.length ? `<div class="vends2">${l.vend.map((v, i) => cardVend(v, l, i)).join("")}</div>` : `<p class="vazio">${rede ? `Nenhum vendedor cadastrado. <button class="bt fant" data-a="ir" data-h="#/metas">Cadastrar em Metas</button>` : "A Diretoria ainda não cadastrou os vendedores desta loja."}</p>`}</section>
-  <section class="sec cartao"><div class="cab2"><h2>Fechamentos de ${nomeMes(S.mes).split(" ")[0].toLowerCase()}</h2><span class="rotulo">${l.n} de ${l.N} fechados</span></div>${diasLoja(l, rede)}</section>`;
+  <section class="sec"><div class="cab2"><h2>Vendedores</h2></div>${l.vend.length ? `<div class="vends2">${l.vend.map((v, i) => cardVend(v, l, i)).join("")}</div>` : `<p class="vazio">${podeEditar() ? `Nenhuma vendedora cadastrada. <button class="bt fant" data-a="ir" data-h="#/metas">Cadastrar em Metas</button>` : "A Diretoria ainda não cadastrou as vendedoras desta loja."}</p>`}</section>
+  <section class="sec cartao"><div class="cab2"><h2>Fechamentos de ${nomeMes(S.mes).split(" ")[0].toLowerCase()}</h2><span class="rotulo">${l.n} de ${l.N} fechados</span></div>${diasLoja(l, podeEditar())}</section>`;
 }
 
 /* ---------- gerente ---------- */
@@ -359,7 +360,7 @@ function grafico() {
 }
 function telaRede() {
   const D = S.dados, r = MR.contaRede(D), t = r.tot;
-  if (!D.lojas.some(l => l.meta)) return `${cabeca("Metas da rede")}<div class="vazio">Nenhuma meta cadastrada em ${nomeMes(S.mes).toLowerCase()}.<br><button class="btn primary" data-a="ir" data-h="#/metas" style="margin-top:14px;width:auto">Cadastrar metas e vendedores</button></div>`;
+  if (!D.lojas.some(l => l.meta)) return `${cabeca("Metas da rede")}<div class="vazio">Nenhuma meta cadastrada em ${nomeMes(S.mes).toLowerCase()}.${podeEditar() ? `<br><button class="btn primary" data-a="ir" data-h="#/metas" style="margin-top:14px;width:auto">Cadastrar metas e vendedoras</button>` : "<br>Quem cadastra as metas é a Diretoria."}</div>`;
   const pend = D.lojas.filter(l => l.pend.length), nDias = D.diasG.filter(x => x < D.hj).length;
   S.rank = D.lojas.flatMap(l => l.vend.filter(v => v.meta && v.ativo).map(v => ({ l, v, c: MR.contaVend(D, v, l).tot }))).sort((a, b) => b.c.pct - a.c.pct);
   const cat = (nome, x, cor) => `<div class="cat2"><div class="l">${nome} <span>${R(x.real)} de ${R(x.meta)} · ${P(x.pct)}</span></div><div class="barra2"><i style="width:${Math.min(100, x.pct * 100)}%;background:${cor}"></i><b style="left:${Math.min(100, x.ideal * 100)}%"></b></div></div>`;
@@ -502,9 +503,16 @@ function telaMetas() {
   <section class="lista2" aria-label="Metas por loja">${D.lojas.map(l => l.id === S.editLoja ? editorLoja(l) : linhaLeitura(l)).join("")}</section>
   <section class="sec cartao"><div class="cab2"><h2>Dias de venda</h2><span class="rotulo">${D.diasG.length} dias</span></div>
     <div class="cal">${MR.SEM.map(s => `<span class="ds">${s}</span>`).join("")}${"<span></span>".repeat(pad)}${D.dias.map(d => { const ab = D.calG.has(d) ? D.calG.get(d) : MR.dow(d) !== 0; return `<button class="${ab ? "on" : ""}" data-a="cal" data-dia="${d}" title="${ab ? "Loja abre" : "Fechado"}">${+d.slice(8)}</button>`; }).join("")}</div>
-    <p class="hint" style="margin:10px 0 0">Toque num dia para abrir ou fechar na rede. Sem marcação, vale segunda a sábado.</p></section>
-  <section class="sec"><details class="cartao"><summary><b>Limites dos avisos</b> <small class="hint">ajuste fino</small></summary><div class="lim" style="margin-top:12px">${lims.map(k => `<span>${esc(cfgDesc.get(k) || k)}</span><input inputmode="decimal" data-cfg="${k}" value="${String(D.cfg[k]).replace(".", ",")}">`).join("")}</div></details></section>
-  ${papel() === "admin" ? `<section class="sec"><details class="cartao" id="acessos"><summary><b>Acessos da Gestão</b> <small class="hint">só Admin</small></summary><div id="acessos-corpo" style="margin-top:12px"><p class="hint">Carregando…</p></div></details></section>` : ""}`;
+    <div class="leg-cal"><span class="ab">■ Loja abre</span><span class="fe">Fechado</span></div>
+    <p class="hint" style="margin:8px 0 0">Toque num dia para abrir ou fechar na rede. Sem marcação, vale segunda a sábado.</p></section>
+`;
+}
+function telaConfig() {
+  const D = S.dados, cfgDesc = new Map((D.raw.config || []).map(c => [c.chave, c.descricao]));
+  return `${cabeca("Configurações", { mes: false, sub: "Acessos e ajustes do app. Metas e números são decididos pela Diretoria." })}
+  <section class="cartao"><div class="cab2"><h2>Acessos da Diretoria</h2><span class="rotulo">só Admin</span></div><div id="acessos-corpo"><p class="hint">Carregando…</p></div></section>
+  <section class="sec cartao"><div class="cab2"><h2>Gerentes das lojas</h2></div><p class="hint" style="margin:0">Cada gerente entra com o login da própria loja, o mesmo do Portal. Senhas e logins das lojas são cuidados na Administração do Portal.</p></section>
+  <section class="sec"><details class="cartao"><summary><b>Limites dos avisos</b> <small class="hint">ajuste fino</small></summary><div class="lim" style="margin-top:12px">${Object.keys(MR.CFG).map(k => `<span>${esc(cfgDesc.get(k) || k)}</span><input inputmode="decimal" data-cfg="${k}" value="${String(D.cfg[k]).replace(".", ",")}">`).join("")}</div></details></section>`;
 }
 async function salvarMetas() {
   const e = S.edicao;
@@ -518,16 +526,29 @@ async function acessos() {
   const corpo = $("acessos-corpo"); if (!corpo) return;
   try {
     const U = (await api.usuarios("listar")).filter(u => u.papel === "gestao");
-    corpo.innerHTML = `${U.length ? U.map(u => `<div class="linha-v"><span><b>${esc(u.nome)}</b> <small class="hint">${esc(u.usuario)}${u.ativo ? "" : " · desativado"}</small></span><button class="mini soft" data-a="ativo" data-id="${u.id}" data-ativo="${u.ativo ? 0 : 1}">${u.ativo ? "Desativar" : "Reativar"}</button></div>`).join("") : `<p class="hint" style="margin:0">Nenhum acesso de Gestão ainda.</p>`}
-      <form id="fdona" class="row" style="margin-top:12px"><label class="f"><span>Usuário</span><input id="dusu" autocapitalize="none" placeholder="ex.: gestao" required></label><label class="f"><span>Nome</span><input id="dnome" placeholder="Nome" value="Diretoria" required></label>
-      <label class="f"><span>Senha (mín. 6)</span><input id="dsen" type="password" minlength="6" autocomplete="new-password" required></label><span style="align-self:end"><button class="btn primary">Criar acesso</button></span></form>
-      <p class="hint" style="margin:6px 0 0">Os gerentes entram com o login da própria loja (o mesmo do Portal).</p>`;
+    corpo.innerHTML = `${U.length ? `<div class="acessos2">${U.map((u, i) => `<div class="ac">${ava(u.nome, i)}<span class="n"><b>${esc(u.nome)}</b><small>${esc(u.usuario)}${u.ativo ? "" : " · desativado"}</small></span><button class="bt" data-a="nova-senha" data-id="${u.id}" data-nome="${esc(u.nome)}">Nova senha</button><button class="bt fant ${u.ativo ? "cinza" : ""}" data-a="ativo" data-id="${u.id}" data-ativo="${u.ativo ? 0 : 1}">${u.ativo ? "Desativar" : "Reativar"}</button></div>`).join("")}</div>` : `<p class="hint" style="margin:0 0 6px">Nenhum acesso da Diretoria ainda.</p>`}
+      <form id="fdona" class="novo-acesso"><span class="rotulo">Novo acesso</span>
+        <label class="f"><span>Usuário</span><input id="dusu" autocapitalize="none" autocomplete="off" placeholder="ex.: diretoria" required></label>
+        <label class="f"><span>Nome que aparece</span><input id="dnome" value="Diretoria" required></label>
+        <label class="f"><span>Senha (mín. 6)</span><input id="dsen" type="password" minlength="6" autocomplete="new-password" required></label>
+        <button class="bt prim">Criar acesso</button></form>`;
     $("fdona").onsubmit = async ev => {
       ev.preventDefault();
       try { await api.usuarios("criar", { papel: "gestao", loja_id: null, usuario: $("dusu").value.trim().toLowerCase(), nome: $("dnome").value.trim(), senha: $("dsen").value }); toast("Acesso criado"); acessos(); }
       catch (e) { erro(e); }
     };
   } catch (e) { corpo.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+function novaSenha(id, nome) {
+  modal(`<h2>Nova senha · ${esc(nome)}</h2><p class="hint" style="margin:0">A pessoa passa a entrar com a senha nova. Combine com ela por fora do app.</p>
+    <label class="f"><span>Senha nova (mín. 6)</span><input id="nsen" type="password" minlength="6" autocomplete="new-password"></label>
+    <div class="nav"><button class="btn soft" id="ncanc">Cancelar</button><button class="btn primary" id="nok">Trocar senha</button></div>`, () => {
+    $("ncanc").onclick = fecharModal; $("nsen").focus();
+    $("nok").onclick = async () => {
+      if ($("nsen").value.length < 6) return toast("A senha precisa ter pelo menos 6 caracteres.");
+      try { await api.usuarios("senha", { id, senha: $("nsen").value }); fecharModal(); toast("Senha trocada"); } catch (e) { erro(e); }
+    };
+  });
 }
 
 /* ---------- avisos ---------- */
@@ -558,14 +579,15 @@ function desenhar() {
   if (nome === "relatorio") { if (ehRede()) { S.mes = MR.mesMais(mesAtual(), -1); S.abrirRel = true; } history.replaceState(null, "", "#/"); return desenhar(); }
   let html;
   if (nome === "avisos") html = telaAvisos();
-  else if (ehRede()) html = nome === "metas" ? telaMetas() : nome === "loja" && lojaPor(arg) ? `${cabeca(tituloLoja(lojaPor(arg)), { voltar: true, sub: `${lojaPor(arg).n} de ${lojaPor(arg).N} dias fechados` })}${painelLoja(lojaPor(arg), true)}` : telaRede();
+  else if (ehRede()) html = nome === "metas" && podeEditar() ? telaMetas() : nome === "config" && papel() === "admin" ? telaConfig() : nome === "loja" && lojaPor(arg) ? `${cabeca(tituloLoja(lojaPor(arg)), { voltar: true, sub: `${lojaPor(arg).n} de ${lojaPor(arg).N} dias fechados` })}${painelLoja(lojaPor(arg), true)}` : telaRede();
   else html = nome === "lancar" ? telaLancar() : telaGerente();
   if (html === null) return desenhar();
-  const abas = ehRede() ? [["#/", "Visão geral", nome === "inicio" || nome === "loja"], ["#/metas", "Metas", nome === "metas"], ["#/avisos", "Avisos", nome === "avisos"]] : null;
+  const abas = !ehRede() ? null : podeEditar() ? [["#/", "Visão geral", nome === "inicio" || nome === "loja"], ["#/metas", "Metas", nome === "metas"], ["#/avisos", "Avisos", nome === "avisos"]]
+    : [["#/", "Visão geral", nome === "inicio" || nome === "loja"], ["#/avisos", "Avisos", nome === "avisos"], ["#/config", "Configurações", nome === "config"]];
   const nav = $("navtopo"); nav.hidden = !abas;
   if (abas) nav.innerHTML = abas.map(([h, t, on]) => `<button class="${on ? "on" : ""}" data-a="ir" data-h="${h}" ${on ? 'aria-current="page"' : ""}>${t}</button>`).join("");
   alvo.innerHTML = `<div class="mt">${html}</div>`;
-  if (nome === "metas" && $("acessos")) $("acessos").addEventListener("toggle", e => { if (e.target.open) acessos(); });
+  if (nome === "config" && $("acessos-corpo")) acessos();
   if (S.foco) { const el = $(S.foco); S.foco = null; if (el) setTimeout(() => el.scrollIntoView({ block: "center" }), 0); }
   if (nome === "lancar" && matchMedia("(pointer:fine)").matches && !document.activeElement.matches("input")) { const c = [...document.querySelectorAll("[data-lv]")]; (c.find(x => !x.value) || c[0] || { focus() { } }).focus(); }
   mostrarInstalar();
@@ -587,7 +609,7 @@ document.addEventListener("click", async e => {
       const x = S.listaAv[+b.dataset.i], al = x.alvo;
       if (al.mes) { S.mes = al.mes; }
       if (al.vend) S.foco = "v-" + al.vend;
-      return ir(al.aba === "metas" ? "#/metas" : ehRede() && al.loja ? "#/loja/" + al.loja : "#/");
+      return ir(al.aba === "metas" && podeEditar() ? "#/metas" : ehRede() && al.loja ? "#/loja/" + al.loja : "#/");
     }
     if (a === "av-visto") { const x = S.listaAv[+b.dataset.i]; await api.marcarVistos([x]); S.dados.vistos.set(x.chave, { chave: x.chave, gravidade: x.g, visto_em: new Date().toISOString() }); S.cache.d = null; return desenhar(); }
     if (a === "todos-vistos") { const L = avisos(); await api.marcarVistos(L); L.forEach(x => S.dados.vistos.set(x.chave, { chave: x.chave, gravidade: x.g, visto_em: new Date().toISOString() })); S.cache.d = null; toast("Todos marcados como vistos"); return desenhar(); }
@@ -618,6 +640,7 @@ document.addEventListener("click", async e => {
       const v = S.dados.lojas.flatMap(l => l.vend).find(x => x.id === b.dataset.v);
       return confirmar(`${esc(v.nome)} saiu da loja?`, "Some da lista de lançamento e das metas. O que já vendeu continua no histórico.", "Tirar da lista", async () => { try { await api.salvarVendedor({ id: v.id, ativo: false }); delete S.edicao.vend[v.id]; await carregar(); desenhar(); } catch (er) { erro(er); } });
     }
+    if (a === "nova-senha") return novaSenha(b.dataset.id, b.dataset.nome);
     if (a === "ativo") { await api.usuarios("ativo", { id: b.dataset.id, ativo: b.dataset.ativo === "1" }); return acessos(); }
   } catch (er) { erro(er); }
 });

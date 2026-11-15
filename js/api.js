@@ -1,7 +1,7 @@
 /* Acesso aos dados. Duas versões com as mesmas funções:
    - Supabase (de verdade): o banco decide o que cada papel vê e grava (banco/banco.sql);
    - demonstração (?demo): tudo no próprio aparelho, com dados de exemplo e as mesmas regras. */
-import * as MR from "./regras.js?v=202611151830";
+import * as MR from "./regras.js?v=202611151853";
 
 export const hoje = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
@@ -216,6 +216,7 @@ function apiDemo() {
       if (acao === "listar") return db.usuarios.map(({ senha, ...x }) => x);
       if (acao === "criar") { if (db.usuarios.some(x => x.usuario === d.usuario)) throw new Error("Esse usuário já existe."); if (String(d.senha || "").length < 6) throw new Error("A senha precisa ter pelo menos 6 caracteres."); db.usuarios.push({ id: "U" + uid(), usuario: d.usuario, senha: d.senha, nome: d.nome || d.usuario, papel: d.papel, loja_id: null, ativo: true }); }
       if (acao === "ativo") db.usuarios.find(x => x.id === d.id).ativo = !!d.ativo;
+      if (acao === "senha") { if (String(d.senha || "").length < 6) throw new Error("A senha precisa ter pelo menos 6 caracteres."); db.usuarios.find(x => x.id === d.id).senha = d.senha; }
       mudou(); return { ok: true };
     },
     async inscreverPush() { throw new Error("No modo demonstração não há avisos no celular."); },

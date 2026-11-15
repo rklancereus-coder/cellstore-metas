@@ -1,0 +1,92 @@
+/* App de Metas: complementos visuais (base: estilo.css do Portal + metas.css) */
+.sino-top{position:relative;background:var(--sunk);color:var(--fg);width:42px;height:42px;display:grid;place-items:center;border-radius:999px;flex:none}
+.sino-top span{position:absolute;top:-3px;right:-3px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--accent);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center}
+.sino-top span.urg{background:var(--urg)}
+
+/* login */
+.mlogin{max-width:440px;margin:2vh auto 0;display:grid;gap:16px}
+.mbanner{position:relative;overflow:hidden;background:var(--ink);color:#fff;border-radius:var(--r-xl);padding:24px 22px 26px}
+.mbanner .logo{background:#fff;width:126px}
+.mbanner .tag{display:inline-block;margin-left:10px;vertical-align:4px;background:linear-gradient(180deg,#ff5aa6,#ff2d8f);color:#fff;font-weight:800;font-size:11px;letter-spacing:.12em;padding:4px 9px;border-radius:var(--r-s)}
+.mbanner h1{color:#fff;font-size:28px;margin-top:18px;padding-right:96px}
+.mbanner h1 span{display:block;color:#ff2d8f}
+.mbanner p{color:#cfc8e3;font-size:14px;margin:10px 0 0;padding-right:96px}
+.mbanner .ic{position:absolute;right:14px;bottom:14px;width:92px;transform:rotate(8deg);filter:drop-shadow(0 8px 16px rgba(255,45,143,.35))}
+@media (max-width:360px){.mbanner h1{font-size:24px}.mbanner .ic{width:76px}}
+.mlogin .instalar{justify-self:center;display:inline-flex;gap:8px;align-items:center}
+
+/* cabeçalho de cada tela */
+.mt .phead{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin:6px 0 12px}
+.mt .phead h1{font-size:24px;margin-right:auto}
+.mt .phead .voltar{margin:0 0 0 -10px;width:100%;text-align:left;padding:4px 10px}
+.mt .phead .mes{display:flex;align-items:center;gap:2px;background:var(--sunk);border-radius:999px;padding:2px 4px}
+.mt .phead .mes b{min-width:128px;text-align:center;font-size:14px}
+.mt .phead .mes .link{padding:6px 10px;font-size:18px;line-height:1}
+.mt > .tabs{margin-top:0}
+
+/* gerente: fechar o dia */
+.mt .status{display:grid;gap:8px;margin-bottom:16px}
+.mt .bigbtn{display:flex;align-items:center;justify-content:center;gap:10px;font-size:19px;padding:20px 18px}
+.mt .status.ok{grid-template-columns:auto 1fr;align-items:center;gap:12px;background:var(--g-soft);color:var(--g);border-radius:var(--r-l);padding:14px 16px}
+.mt .status.ok b{display:block;color:var(--fg);font-size:16px}
+.mt .status.ok span{color:var(--muted);font-size:13px;font-weight:600}
+.mt .linha-v{display:flex;justify-content:space-between;gap:8px;font-size:15px;align-items:center}
+.mt .linha-v.tot{font-weight:800;border-top:1px solid var(--line);padding-top:6px}
+
+/* dias do mês com símbolo (não depende só da cor) */
+.mt .dias2 div,.mt .dias2 button{position:relative;display:grid;place-items:center;aspect-ratio:1;border-radius:6px;font-size:11px;font-weight:800;background:var(--sunk);color:var(--muted)}
+.mt .dias2 em{position:absolute;top:1px;right:3px;font-style:normal;font-size:9px;line-height:1}
+.mt .dias2 .f{background:var(--g-soft);color:var(--g)}
+.mt .dias2 .re{background:var(--a-soft);color:var(--a)}
+.mt .dias2 .p{background:var(--r-soft);color:var(--r);outline:2px solid var(--r);outline-offset:-2px}
+.mt .dias2 .h{background:var(--accent-soft);color:var(--accent);outline:2px dashed var(--accent);outline-offset:-2px}
+.mt .dias2 button{cursor:pointer;border:0;font:inherit;font-size:11px;font-weight:800}
+.mt .ponto{width:10px;height:10px;border-radius:50%;background:var(--muted)}
+.mt .ponto.g{background:var(--g)} .mt .ponto.a{background:var(--a)} .mt .ponto.r{background:var(--r)}
+.mt .grp{margin:16px 0 8px;display:flex;gap:8px;align-items:baseline}
+.mt .grp small{color:var(--muted);font-weight:700}
+.mt .grp.r{color:var(--r)} .mt .grp.a{color:var(--a)} .mt .grp.g{color:var(--g)}
+.mt .cor.r{font-weight:800}
+/* textos pequenos em amarelo: mais peso para contraste */
+.mt .txt-a{font-weight:800}
+
+/* metas em lote: um cartão por loja (bom no celular) */
+.mt .mcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+@media (max-width:420px){.mt .mcards{grid-template-columns:minmax(0,1fr)}}
+.mt .mcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);padding:14px;display:grid;gap:8px;min-width:0}
+.mt .mc-cab{display:grid;gap:2px}
+.mt .mc-res{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);font-weight:600}
+.mt .mc-res b{color:var(--fg)}
+.mt .mc-linha,.mt .mc-titulos{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) 28px;gap:6px;align-items:center}
+.mt .mc-titulos span{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.mt .mc-linha input{padding:9px 10px;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.mt .mc-linha .din input{padding-left:34px;font-size:14px}
+.mt .mc-linha .din::before{left:10px;font-size:12px}
+.mt .mc-linha.loja{background:var(--sunk);border-radius:var(--r-m);padding:8px;margin:0 -4px}
+.mt .mc-linha.loja>span:first-child{font-weight:800;font-size:13px}
+.mt .mc-linha .link{padding:4px;font-size:20px;line-height:1}
+.mt .mc-acoes{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:2px}
+.mt .mc-acoes .novo{display:flex;gap:6px;align-items:center}
+.mt .mc-acoes .novo input{padding:8px 10px;font-size:14px;width:150px}
+.mt .mc-acoes .novo .mini{display:grid;place-items:center;padding:8px}
+.mt .savebar{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:6;margin-top:14px;display:flex;gap:8px;align-items:center;background:var(--fg);color:var(--bg);border-radius:var(--r-l);padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.mt .savebar span{margin-right:auto;font-weight:700;font-size:14px}
+.mt details summary{cursor:pointer;list-style-position:inside}
+
+/* relatório */
+.modal .box.box-rel{width:min(900px,100%);max-height:calc(100% - 32px)}
+.mt .tab-metas.rel tr.loja td{font-weight:800;border-top:2px solid var(--line)}
+.mt .tab-metas.rel tr.vend td:first-child{padding-left:18px}
+@media print{body>*:not(#modal){display:none!important}#modal{position:static;background:none;padding:0}.modal .box{max-height:none;width:100%;overflow:visible}#modal button{display:none}}
+.passos-ios{display:grid;gap:8px;margin:0;padding-left:20px}
+/* celular: valores das metas inteiros (sem "R$" dentro do campo) */
+.mt .mc-linha .din::before{content:none}
+.mt .mc-linha .din input,.mt .mc-linha input{padding:9px 8px;font-size:14px}
+.mt .mc-linha,.mt .mc-titulos{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,1fr) 24px;gap:5px}
+.mt .mc-titulos span:nth-child(2)::after,.mt .mc-titulos span:nth-child(3)::after{content:" (R$)";text-transform:none;letter-spacing:0}
+
+/* faixa "Ativar avisos" */
+.mt .faixa{display:flex;align-items:center;gap:12px;background:var(--accent-soft);border-radius:var(--r-l);padding:12px 14px;margin-bottom:14px;color:var(--accent)}
+.mt .faixa span{margin-right:auto;display:grid;gap:2px;min-width:0}
+.mt .faixa b{color:var(--fg);font-size:15px}
+.mt .faixa small{color:var(--muted);font-weight:600;font-size:12px}

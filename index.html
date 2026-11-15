@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#d81b7a">
+<meta name="robots" content="noindex">
+<title>Metas Cell Store</title>
+<meta name="description" content="Fechamento do dia e acompanhamento das metas das lojas Cell Store.">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="icone-180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Metas">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="estilo.css?v=1">
+<link rel="stylesheet" href="logo.css?v=1">
+<link rel="stylesheet" href="metas.css?v=1">
+<link rel="stylesheet" href="app.css?v=1">
+</head>
+<body>
+<header class="top" id="top" hidden><div class="in">
+  <div class="brand"><span class="logo" role="img" aria-label="Cell Store"></span><span class="sep"></span>
+    <span style="min-width:0"><b id="quem">Metas</b><small id="sub"></small></span></div>
+  <button class="sino-top" id="sino" aria-label="Avisos"></button>
+  <button class="link" id="sair">Sair</button>
+</div></header>
+<main class="wrap" id="app"><p class="carregando">Carregando…</p></main>
+<div class="toast" id="toast" hidden></div>
+<div class="modal" id="modal" hidden></div>
+<script>window.VERSAO = "1";</script>
+<script src="config.js?v=1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script type="module" src="js/app.js?v=1"></script>
+</body>
+</html>

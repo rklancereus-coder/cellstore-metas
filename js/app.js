@@ -2,8 +2,8 @@
    Gerente (login da loja): abre no fechamento do dia; painel da loja embaixo.
    Dona e administrador: visão das lojas, metas em lote, calendário, avisos, relatório.
    Telas por endereço (#/…): o "voltar" do celular anda um passo, como nos outros apps. */
-import * as MR from "./regras.js?v=1";
-import { criarApi, hoje } from "./api.js?v=1";
+import * as MR from "./regras.js?v=202611151205";
+import { criarApi, hoje } from "./api.js?v=202611151205";
 
 const api = criarApi(window.CONFIG);
 const $ = id => document.getElementById(id);

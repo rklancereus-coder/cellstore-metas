@@ -1,7 +1,7 @@
 /* Acesso aos dados. Duas versões com as mesmas funções:
    - Supabase (de verdade): o banco decide o que cada papel vê e grava (banco/banco.sql);
    - demonstração (?demo): tudo no próprio aparelho, com dados de exemplo e as mesmas regras. */
-import * as MR from "./regras.js?v=1";
+import * as MR from "./regras.js?v=202611151205";
 
 export const hoje = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };

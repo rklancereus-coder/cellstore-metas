@@ -24,22 +24,27 @@ export function montar(mes, d, ctx) {
   const calG = new Map(d.cal.map(c => [c.dia, c.aberto]));
   const abertoG = x => calG.has(x) ? calG.get(x) : dow(x) !== 0;
   const fechPorId = new Map(d.fech.map(f => [f.id, f]));
+  const lojaDoVend = new Map(d.vendedores.map(v => [v.id, v.loja_id])), saldos = d.saldo || [];
   const minhas = ctx.papel === "loja" ? ctx.lojas.filter(l => l.id === ctx.lojaId) : ctx.lojas.filter(l => l.ativa || d.fech.some(f => f.loja_id === l.id));
   const lojas = minhas.map(l => {
     const calL = new Map(d.calLoja.filter(c => c.loja_id === l.id).map(c => [c.dia, c.aberto]));
     const diasV = dias.filter(x => calL.has(x) ? calL.get(x) : abertoG(x));
     const ml = d.metasLoja.find(m => m.loja_id === l.id);
     const fech = new Map(d.fech.filter(f => f.loja_id === l.id).map(f => [f.dia, f]));
+    // saldo de abertura: até "ate" a loja entrou com o total já vendido (conta como dias fechados)
+    const ate = saldos.filter(x => lojaDoVend.get(x.vendedor_id) === l.id).reduce((m, x) => x.ate_dia > m ? x.ate_dia : m, "") || null;
     const vend = d.vendedores.filter(v => v.loja_id === l.id).map(v => {
-      const mv = d.metasVend.find(m => m.vendedor_id === v.id), val = new Map();
+      const mv = d.metasVend.find(m => m.vendedor_id === v.id), val = new Map(), sd = saldos.find(x => x.vendedor_id === v.id);
       d.lanc.filter(x => x.vendedor_id === v.id).forEach(x => val.set(x.dia, { a: Number(x.assistencia), v: Number(x.vendas) }));
-      return { id: v.id, nome: v.nome, ordem: v.ordem, ativo: v.ativo, meta: mv ? { a: Number(mv.assistencia), v: Number(mv.vendas) } : null, val };
-    }).filter(v => v.ativo || v.val.size).sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome, "pt-BR"));
-    const fechados = diasV.filter(x => (fech.get(x) || {}).status === "fechado");
+      return { id: v.id, nome: v.nome, ordem: v.ordem, ativo: v.ativo, meta: mv ? { a: Number(mv.assistencia), v: Number(mv.vendas) } : null, val, saldo: sd ? { a: Number(sd.assistencia), v: Number(sd.vendas) } : null };
+    }).filter(v => v.ativo || v.val.size || v.saldo).sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome, "pt-BR"));
+    const fechouApp = x => (fech.get(x) || {}).status === "fechado";
+    const fechados = diasV.filter(x => (ate && x <= ate) || fechouApp(x));   // para as contas (saldo + app)
+    const diasApp = diasV.filter(x => (!ate || x > ate) && fechouApp(x));    // só o que foi lançado dia a dia
     // loja sem vendedor ativo ainda não usa as metas: não cobra fechamento
-    const pend = vend.some(v => v.ativo) ? diasV.filter(x => x < hj && (fech.get(x) || {}).status !== "fechado") : [];
+    const pend = vend.some(v => v.ativo) ? diasV.filter(x => x < hj && !(ate && x <= ate) && !fechouApp(x)) : [];
     const corr = d.corr.filter(c => (fechPorId.get(c.fechamento_id) || {}).loja_id === l.id).map(c => ({ ...c, dia: fechPorId.get(c.fechamento_id).dia }));
-    return { id: l.id, nome: l.nome, meta: ml ? { a: Number(ml.assistencia), v: Number(ml.vendas) } : null, diasV, N: diasV.length, fech, fechados, n: fechados.length, pend, vend, corr, hojeVenda: diasV.includes(hj) };
+    return { id: l.id, nome: l.nome, meta: ml ? { a: Number(ml.assistencia), v: Number(ml.vendas) } : null, diasV, N: diasV.length, fech, fechados, diasApp, ate, n: fechados.length, pend, vend, corr, hojeVenda: diasV.includes(hj) };
   });
   return { mes, hj, dias, diasG: dias.filter(abertoG), calG, cfg, lojas, vistos: new Map((d.vistos || []).map(v => [v.chave, v])), proximoTemMetas: d.proximoTemMetas, raw: d };
 }
@@ -50,7 +55,7 @@ export function conta(D, meta, real, n, N) {
   const pct = meta ? real / meta : 0, ideal = N ? n / N : 0, falta = Math.max(0, meta - real), rest = Math.max(0, N - n);
   return { meta, real, pct, ideal, falta, rest, n, N, diaria: rest ? falta / rest : falta, proj: n ? real / n * N : 0, projPct: meta && n ? real / n * N / meta : 0, cor: cor(D, pct, ideal, meta) };
 }
-export const soma = (v, k) => { let s = 0; v.val.forEach(x => s += x[k]); return s; };
+export const soma = (v, k) => { let s = v.saldo ? v.saldo[k] : 0; v.val.forEach(x => s += x[k]); return s; };
 export function contaVend(D, v, l) {
   const ra = soma(v, "a"), rv = soma(v, "v"), m = v.meta;
   return { tot: conta(D, m ? m.a + m.v : 0, ra + rv, l.n, l.N), a: conta(D, m ? m.a : 0, ra, l.n, l.N), v: conta(D, m ? m.v : 0, rv, l.n, l.N) };
@@ -80,13 +85,14 @@ export function avisos(D, ctx) {
       if (cl.tot.pct >= 1) add("g", `bateu-${l.id}-${mes}`, `${l.nome} bateu a meta!`, `${R(cl.tot.real)} de ${R(cl.tot.meta)}.`, al);
       else if (ritmo && cl.tot.projPct < c.proj_loja) add("r", `proj-${l.id}-${mes}`, `${l.nome}: previsão de ${P(cl.tot.projPct)}`, `No ritmo atual fecha o mês em ${R(cl.tot.proj)}. Precisa vender ${R(cl.tot.diaria)} por dia.`, al, 1 - cl.tot.projPct);
     }
-    if (n >= 3) {
-      const tots = l.fechados.map(x => totDia(l, x)), ult = l.fechados[n - 1];
-      if (tots[n - 1] > 0 && tots[n - 1] === Math.max(...tots)) add("g", `rec-${l.id}-${ult}`, `${l.nome}: melhor dia do mês`, `${data(ult)} fechou em ${R(tots[n - 1])}, recorde do mês.`, al);
+    const dA = l.diasApp, na = dA.length;   // recorde, fora do normal e queda: só dias lançados no app
+    if (na >= 3) {
+      const tots = dA.map(x => totDia(l, x)), ult = dA[na - 1];
+      if (tots[na - 1] > 0 && tots[na - 1] === Math.max(...tots)) add("g", `rec-${l.id}-${ult}`, `${l.nome}: melhor dia do mês`, `${data(ult)} fechou em ${R(tots[na - 1])}, recorde do mês.`, al);
     }
-    if (n >= 4) l.vend.forEach(v => ["a", "v"].forEach(k => l.fechados.forEach(dia => {
+    if (na >= 4) l.vend.forEach(v => ["a", "v"].forEach(k => dA.forEach(dia => {
       const x = v.val.get(dia); if (!x) return;
-      const outros = l.fechados.filter(o => o !== dia).map(o => (v.val.get(o) || { a: 0, v: 0 })[k]), m = outros.reduce((s, y) => s + y, 0) / outros.length;
+      const outros = dA.filter(o => o !== dia).map(o => (v.val.get(o) || { a: 0, v: 0 })[k]), m = outros.reduce((s, y) => s + y, 0) / outros.length;
       if (m > 0 && x[k] > c.fora_media_mult * m) add("a", `erro-${v.id}-${k}-${dia}`, `${l.nome}: valor fora do normal`, `${v.nome} lançou ${R(x[k])} em ${k === "a" ? "Assistência" : "Vendas"} em ${data(dia)}; a média dele é ${R(m)}. Pode ser erro de digitação.`, { loja: l.id, vend: v.id, dia });
     })));
     const porFech = new Map(); l.corr.forEach(x => { if (!porFech.has(x.fechamento_id)) porFech.set(x.fechamento_id, []); porFech.get(x.fechamento_id).push(x); });
@@ -105,9 +111,9 @@ export function avisos(D, ctx) {
         else if (t.ideal - t.pct > c.amarelo_pts / 100) add("a", `abaixo-${v.id}-${mes}`, `${v.nome} (${l.nome}) abaixo do ritmo`, `Está em ${P(t.pct)}, o ideal hoje é ${P(t.ideal)}. Precisa de ${R(t.diaria)} por dia.`, alvo, t.ideal - t.pct);
         if (t.pct - t.ideal > c.acima_pts / 100 || t.projPct > c.acima_proj) add("g", `acima-${v.id}-${mes}`, `${v.nome} (${l.nome}) muito acima`, `Está em ${P(t.pct)} (ideal ${P(t.ideal)}), previsão de ${P(t.projPct)}.`, alvo);
       }
-      if (n >= 10) {
+      if (na >= 10) {
         const dia = x => { const y = v.val.get(x); return y ? y.a + y.v : 0; };
-        const ult = l.fechados.slice(-5).reduce((s, x) => s + dia(x), 0) / 5, antes = l.fechados.slice(0, -5).reduce((s, x) => s + dia(x), 0) / (n - 5);
+        const ult = dA.slice(-5).reduce((s, x) => s + dia(x), 0) / 5, antes = dA.slice(0, -5).reduce((s, x) => s + dia(x), 0) / (na - 5);
         if (antes > 0 && ult < c.queda_fator * antes) add("a", `queda-${v.id}-${mes}`, `${v.nome} (${l.nome}): queda de ritmo`, `Últimos 5 dias: média de ${R(ult)}/dia. Antes vinha com ${R(antes)}/dia.`, alvo, 1 - ult / antes);
       }
       if (ritmo && cv.a.meta && cv.v.meta && Math.abs(cv.a.pct - cv.v.pct) > c.deseq_pts / 100) add("a", `deseq-${v.id}-${mes}`, `${v.nome} (${l.nome}): categorias desequilibradas`, `Assistência em ${P(cv.a.pct)} e Vendas em ${P(cv.v.pct)} da meta.`, alvo, Math.abs(cv.a.pct - cv.v.pct));

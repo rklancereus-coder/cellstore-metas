@@ -1,7 +1,7 @@
 /* Acesso aos dados. Duas versões com as mesmas funções:
    - Supabase (de verdade): o banco decide o que cada papel vê e grava (banco/banco.sql);
    - demonstração (?demo): tudo no próprio aparelho, com dados de exemplo e as mesmas regras. */
-import * as MR from "./regras.js?v=202611151224";
+import * as MR from "./regras.js?v=202611151700";
 
 export const hoje = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
@@ -66,12 +66,14 @@ function apiSupabase(cfg) {
         sb.from("metas_config").select("*"),
         sb.from("metas_vistos").select("chave, gravidade, visto_em"),
         sb.from("metas_loja").select("loja_id", { count: "exact", head: true }).eq("mes", MR.mesMais(mes, 1)),
+        sb.from("metas_saldo").select("vendedor_id, ate_dia, assistencia, vendas").eq("mes", mes),
       ]);
       const [vendedores, metasLoja, metasVend, cal, calLoja, fech, lanc, corr, config, vistos] = r.slice(0, 10).map(ok);
-      return { vendedores, metasLoja, metasVend, cal, calLoja, fech, lanc, corr: corr.map(({ metas_fechamentos, ...c }) => c), config, vistos, proximoTemMetas: (r[10].count || 0) > 0 };
+      return { vendedores, metasLoja, metasVend, cal, calLoja, fech, lanc, corr: corr.map(({ metas_fechamentos, ...c }) => c), config, vistos, proximoTemMetas: (r[10].count || 0) > 0, saldo: ok(r[11]) };
     },
     async fecharDia(loja, dia, valores) { return ok(await sb.rpc("metas_fechar_dia", { p_loja: loja, p_dia: dia, p_valores: valores })); },
     async reabrirDia(loja, dia) { ok(await sb.rpc("metas_reabrir_dia", { p_loja: loja, p_dia: dia })); },
+    async salvarSaldo(loja, mes, ate, valores) { ok(await sb.rpc("metas_salvar_saldo", { p_loja: loja, p_mes: mes, p_ate: ate, p_valores: valores })); },
     async copiarMetas(de, para) { return ok(await sb.rpc("metas_copiar", { p_de: de, p_para: para })); },
     async salvarVendedor(v) { const { id, ...d } = v; id ? ok(await sb.from("metas_vendedores").update(d).eq("id", id)) : ok(await sb.from("metas_vendedores").insert(d)); },
     // metas em lote: lojas [{loja_id,a,v}], vend [{vendedor_id, m:{a,v}|null}], nomes [{id,nome}]
@@ -157,7 +159,8 @@ function apiDemo() {
       return { vendedores: db.vendedores.filter(v => vejo(v.loja_id)), metasLoja: db.metasLoja.filter(x => x.mes === mes && vejo(x.loja_id)), metasVend: db.metasVend.filter(x => x.mes === mes && vejo(vendLoja(x.vendedor_id))),
         cal: db.cal.filter(c => noMes(c.dia)), calLoja: db.calLoja.filter(c => noMes(c.dia) && vejo(c.loja_id)), fech,
         lanc: db.valores.filter(x => ids.has(x.fid)).map(x => { const f = fech.find(y => y.id === x.fid); return { loja_id: f.loja_id, dia: f.dia, status: f.status, vendedor_id: x.vendedor_id, assistencia: x.assistencia, vendas: x.vendas }; }),
-        corr: db.corr.filter(c => ids.has(c.fechamento_id)), config: db.config, vistos: db.vistos.filter(v => v.perfil_id === u.id), proximoTemMetas: db.metasLoja.some(x => x.mes === MR.mesMais(mes, 1)) };
+        corr: db.corr.filter(c => ids.has(c.fechamento_id)), config: db.config, vistos: db.vistos.filter(v => v.perfil_id === u.id), proximoTemMetas: db.metasLoja.some(x => x.mes === MR.mesMais(mes, 1)),
+        saldo: (db.saldo || []).filter(x => x.mes === mes && vejo(vendLoja(x.vendedor_id))) };
     },
     async fecharDia(loja, dia, valores) {
       const u = exigir("loja", "gestao", "admin"), rede = u.papel !== "loja";
@@ -165,6 +168,7 @@ function apiDemo() {
       if (dia > hoje()) throw new Error("Esse dia ainda não chegou.");
       let f = db.fech.find(x => x.loja_id === loja && x.dia === dia);
       if (f && f.status === "fechado" && !rede) throw new Error("Esse dia já está fechado. Só a gestão pode reabrir.");
+      if ((db.saldo || []).some(x => (db.vendedores.find(v => v.id === x.vendedor_id) || {}).loja_id === loja && x.mes === dia.slice(0, 7) + "-01" && x.ate_dia >= dia)) throw new Error("Esse dia já está no saldo de abertura da loja.");
       const ja = f && (f.status === "fechado" || f.reaberto_em);
       if (!f) { f = { id: loja + dia, loja_id: loja, dia, status: "aberto", fechado_em: null, reaberto_em: null }; db.fech.push(f); }
       for (const x of valores) {
@@ -175,6 +179,18 @@ function apiDemo() {
         val.assistencia = x.assistencia; val.vendas = x.vendas;
       }
       f.status = "fechado"; f.fechado_em = new Date().toISOString(); mudou(); return f.id;
+    },
+    async salvarSaldo(loja, mes, ate, valores) {
+      exigir("gestao", "admin"); db.saldo = db.saldo || [];
+      const daLoja = id => (db.vendedores.find(v => v.id === id) || {}).loja_id === loja;
+      const resto = db.saldo.filter(x => !(x.mes === mes && daLoja(x.vendedor_id)));
+      if (valores.length) {
+        if (ate >= hoje()) throw new Error("O saldo vai no máximo até ontem.");
+        const prim = db.fech.filter(f => f.loja_id === loja && f.dia >= mes && f.dia <= ate).map(f => f.dia).sort()[0];
+        if (prim) throw new Error(`Já há dia lançado no app em ${prim.slice(8)}/${prim.slice(5, 7)} (antes dessa data). Escolha um dia anterior para o saldo.`);
+        valores.forEach(x => { if (!daLoja(x.vendedor_id)) throw new Error("Vendedor não é desta loja."); resto.push({ mes, vendedor_id: x.vendedor_id, ate_dia: ate, assistencia: x.assistencia, vendas: x.vendas }); });
+      }
+      db.saldo = resto; mudou();
     },
     async reabrirDia(loja, dia) { exigir("gestao", "admin"); const f = db.fech.find(x => x.loja_id === loja && x.dia === dia && x.status === "fechado"); if (!f) throw new Error("Esse dia não está fechado."); f.status = "aberto"; f.reaberto_em = new Date().toISOString(); mudou(); },
     async copiarMetas(de, para) {

@@ -2,8 +2,8 @@
    Gerente (login da loja): abre no fechamento do dia; painel da loja embaixo.
    Gestão e Admin: visão das lojas, metas em lote, calendário, avisos, relatório.
    Telas por endereço (#/…): o "voltar" do celular anda um passo, como nos outros apps. */
-import * as MR from "./regras.js?v=202611151224";
-import { criarApi, hoje } from "./api.js?v=202611151224";
+import * as MR from "./regras.js?v=202611151700";
+import { criarApi, hoje } from "./api.js?v=202611151700";
 
 const api = criarApi(window.CONFIG);
 const $ = id => document.getElementById(id);
@@ -120,18 +120,19 @@ function cardVend(v, l) {
     <div class="pe"><span>Vendeu <b>${R(t.real)}</b> de ${R(t.meta)}</span><span>Precisa <b>${R(t.diaria)}/dia</b></span><span>Previsão <b class="txt-${corPrev(t.projPct)}">${t.n ? P(t.projPct) : "—"}</b></span></div></div>`;
 }
 function diasLoja(l, rede) {
-  const hj = S.dados.hj, SIM = { f: "✓", re: "↺", p: "!", h: "•" };
+  const hj = S.dados.hj, SIM = { f: "✓", re: "↺", p: "!", h: "•", s: "Σ" };
   const cel = l.diasV.map(dia => {
     const f = l.fech.get(dia), corr = f && (f.reaberto_em || l.corr.some(c => c.fechamento_id === f.id));
     let cls = "", tit = data(dia);
-    if (f && f.status === "fechado") { cls = corr ? "re" : "f"; tit += corr ? " · corrigido" : " · fechado"; }
+    if (l.ate && dia <= l.ate) { cls = "s"; tit += " · no saldo de abertura"; }
+    else if (f && f.status === "fechado") { cls = corr ? "re" : "f"; tit += corr ? " · corrigido" : " · fechado"; }
     else if (dia < hj) { cls = "p"; tit += f ? " · reaberto, falta lançar de novo" : " · fechamento pendente"; }
     else if (dia === hj) { cls = "h"; tit += " · hoje"; }
     const n = +dia.slice(8), dentro = `<span>${n}</span>${cls ? `<em>${SIM[cls]}</em>` : ""}`;
-    return rede && dia <= hj ? `<button class="${cls}" data-a="dia" data-dia="${dia}" title="${tit} · toque para ver ou corrigir">${dentro}</button>` : `<div class="${cls}" title="${tit}">${dentro}</div>`;
+    return rede && dia <= hj && cls !== "s" ? `<button class="${cls}" data-a="dia" data-dia="${dia}" title="${tit} · toque para ver ou corrigir">${dentro}</button>` : `<div class="${cls}" title="${tit}">${dentro}</div>`;
   }).join("");
   return `<div class="dias dias2">${cel || `<span class="hint">Nenhum dia de venda neste mês.</span>`}</div>
-  <div class="leg-dias"><span style="--c:var(--g-soft)">✓ Fechado</span><span style="--c:var(--a-soft)">↺ Corrigido</span><span style="--c:var(--r-soft)">! Pendente</span><span style="--c:var(--accent-soft)">• Hoje</span></div>
+  <div class="leg-dias"><span style="--c:var(--g-soft)">✓ Fechado</span><span style="--c:var(--a-soft)">↺ Corrigido</span><span style="--c:var(--r-soft)">! Pendente</span><span style="--c:var(--accent-soft)">• Hoje</span>${l.ate ? `<span style="--c:var(--sunk)">Σ Saldo de abertura</span>` : ""}</div>
   <p class="hint" style="margin:0">${rede ? "Toque num dia para lançar, corrigir ou reabrir para o gerente." : "Dia fechado não muda mais. Se precisar corrigir, peça à gestão para reabrir."}</p>`;
 }
 function listaAvisos(L, { max = 0, agrupar = false } = {}) {
@@ -173,7 +174,12 @@ function painelLoja(l, rede) {
   const c = MR.contaLoja(S.dados, l), t = c.tot, sem = !l.meta;
   const cat = (nome, x) => `<div class="cat"><div class="l"><span style="color:var(--fg)">${nome} <span>${R(x.real)} de ${R(x.meta)}</span></span><span class="txt-${x.cor}" style="font-weight:800">${P(x.pct)}</span></div>${barra(x)}</div>`;
   const avL = avisos().filter(x => x.alvo && x.alvo.loja === l.id);
-  return `<div class="mhero">
+  const comecou = l.diasApp.length || l.ate, meio = S.mes === mesAtual() && l.vend.some(v => v.ativo) && l.pend.length >= 3 && !comecou;
+  const saldoBox = rede && S.mes === mesAtual() ? (l.ate
+      ? `<div class="saldo-nota">Σ Inclui o saldo de abertura até ${data(l.ate)}. <button class="link" data-a="saldo" data-loja="${l.id}">Ver ou mudar</button></div>`
+      : meio ? `<div class="aviso"><b>Começando no meio do mês?</b> Lance o saldo de abertura: quanto cada vendedor já vendeu até ontem. Assim a loja não aparece zerada. <button class="mini primary" data-a="saldo" data-loja="${l.id}" style="margin-top:8px;display:block">Lançar saldo de abertura</button></div>` : "")
+    : (l.ate ? `<div class="saldo-nota">Σ Inclui o saldo de abertura até ${data(l.ate)}.</div>` : "");
+  return `${saldoBox}<div class="mhero">
     <div class="topo"><span>${esc(l.nome)} · ${l.n} de ${l.N} dias fechados</span>${l.pend.length ? `<span class="cor r">Fechamento pendente${l.pend.length > 1 ? ` (${l.pend.length} dias)` : ""}</span>` : chip(t.cor)}</div>
     <div class="valor"><b>${R(t.real)}</b><span>${sem ? "sem meta cadastrada" : `de ${R(t.meta)}`}</span>${sem ? "" : `<em class="txt-${t.cor}">${P(t.pct)}</em>`}</div>
     ${sem ? "" : `${barra(t)}<div class="legenda"><span>▏Onde deveria estar hoje: ${P(t.ideal)}</span><span>Falta ${R(t.falta)}</span></div>
@@ -198,6 +204,7 @@ function telaGerente() {
   if (S.mes === mesAtual()) {
     const fila = filaLancar(l), ativos = l.vend.some(v => v.ativo), ult = l.fechados[l.n - 1];
     if (!ativos) topo = `<div class="aviso"><b>Ainda sem vendedores.</b> A gestão precisa cadastrar os vendedores desta loja para o fechamento funcionar.</div>`;
+    else if (l.pend.length >= 3 && !l.diasApp.length && !l.ate) topo = `<div class="aviso"><b>A loja está começando a usar agora?</b> Peça à Diretoria para lançar o saldo de abertura (o que já foi vendido no mês). Depois disso, é só fechar o dia de hoje.</div>`;
     else if (fila.length) topo = `<div class="status"><button class="btn primary bigbtn" data-a="ir" data-h="#/lancar">${ICON.ok} ${fila[0] === S.dados.hj ? "Fechar o dia de hoje" : `Lançar ${data(fila[0])}`}</button>
       <p class="${l.pend.length ? "txt-r" : "hint"}" style="margin:0;font-weight:700;text-align:center">${l.pend.length ? `${l.pend.length} dia${l.pend.length > 1 ? "s" : ""} atrasado${l.pend.length > 1 ? "s" : ""} · comece pelo mais antigo` : "Leva 1 minuto: Assistência e Vendas de cada vendedor."}</p></div>`;
     else topo = `<div class="status ok">${ICON.ok}<div><b>Tudo em dia</b><span>${ult ? `Último fechamento: ${data(ult)} · ${R(MR.totDia(l, ult))}` : "Nenhum dia para lançar agora."}</span></div></div>`;
@@ -281,6 +288,36 @@ function diaRede(l, dia) {
   });
 }
 
+/* ---------- gestão: saldo de abertura ---------- */
+function saldoAbertura(l) {
+  const hj = S.dados.hj, primApp = [...l.fech.keys()].sort()[0];
+  const opcoes = l.diasV.filter(d => d < hj && (!primApp || d < primApp));
+  if (!opcoes.length) return toast("Não há dia anterior disponível para o saldo neste mês.", 4000);
+  const vs = l.vend.filter(v => v.ativo || v.saldo), ate = l.ate || opcoes[opcoes.length - 1];
+  modal(`<h2>Saldo de abertura · ${esc(l.nome)}</h2>
+    <p class="hint" style="margin:0">Quanto cada vendedor já vendeu em ${nomeMes(S.mes).toLowerCase()} até o dia escolhido (o total da planilha). Conta nas contas da meta como dias já fechados; depois disso, a loja fecha dia a dia no app.</p>
+    <label class="f"><span>Vendido até o dia</span><select id="sate">${opcoes.map(d => `<option value="${d}" ${d === ate ? "selected" : ""}>${data(d)}</option>`).join("")}</select></label>
+    ${primApp ? `<p class="hint" style="margin:0">A loja já lançou no app a partir de ${data(primApp)}: o saldo vai até o dia anterior.</p>` : ""}
+    ${vs.map(v => `<div class="row"><label class="f"><span>${esc(v.nome)} · Assist.</span><div class="din"><input inputmode="decimal" id="sa-${v.id}" value="${v.saldo ? campo(v.saldo.a) : ""}" placeholder="0"></div></label>
+      <label class="f"><span>Vendas</span><div class="din"><input inputmode="decimal" id="sv-${v.id}" value="${v.saldo ? campo(v.saldo.v) : ""}" placeholder="0"></div></label></div>`).join("")}
+    <div class="linha-v tot"><span>Total da loja até o dia</span><span id="stot">R$ 0</span></div>
+    <button class="btn primary" id="ssalvar">Salvar saldo</button>
+    ${l.ate ? `<button class="btn soft" id="sapagar">Apagar saldo</button>` : ""}
+    <button class="btn soft" id="scanc">Cancelar</button>`, () => {
+    const tot = () => { $("stot").textContent = R(vs.reduce((s, v) => s + num($("sa-" + v.id).value) + num($("sv-" + v.id).value), 0)); };
+    tot(); $("modal").addEventListener("input", tot);
+    $("scanc").onclick = fecharModal;
+    $("ssalvar").onclick = async () => {
+      const vals = vs.map(v => ({ vendedor_id: v.id, assistencia: num($("sa-" + v.id).value), vendas: num($("sv-" + v.id).value) }));
+      if (!vals.some(x => x.assistencia || x.vendas)) return toast("Digite pelo menos um valor.");
+      $("ssalvar").disabled = true;
+      try { await api.salvarSaldo(l.id, S.mes, $("sate").value, vals); fecharModal(); toast("Saldo de abertura salvo"); await carregar(); desenhar(); }
+      catch (e) { $("ssalvar").disabled = false; erro(e); }
+    };
+    if ($("sapagar")) $("sapagar").onclick = () => confirmar("Apagar o saldo de abertura?", "Os dias do saldo voltam a aparecer como pendentes para a loja.", "Apagar", async () => { try { await api.salvarSaldo(l.id, S.mes, l.ate, []); toast("Saldo apagado"); await carregar(); desenhar(); } catch (e) { erro(e); } });
+  });
+}
+
 /* ---------- gestão: visão da rede ---------- */
 function grafico() {
   const D = S.dados, N = D.diasG.length, r = MR.contaRede(D).tot, W = 600, H = 250, ml = 52, mr = 12, mt = 12, mb = 28;
@@ -288,7 +325,7 @@ function grafico() {
   const meta = r.meta, ymax = Math.max(meta, r.proj, r.real) * 1.05, x = i => ml + (W - ml - mr) * i / N, y = v => mt + (H - mt - mb) * (1 - v / ymax);
   const comMeta = D.lojas.filter(l => l.meta);
   const ate = D.diasG.filter(d => d < D.hj || (d === D.hj && comMeta.some(l => (l.fech.get(d) || {}).status === "fechado"))).length;
-  const acum = [0]; for (let i = 1; i <= ate; i++) { const d = D.diasG[i - 1], ant = D.diasG[i - 2] || "0000"; acum.push(acum[i - 1] + comMeta.reduce((s, l) => s + l.vend.reduce((t, v) => { let z = 0; v.val.forEach((val, dia) => { if (dia <= d && dia > ant) z += val.a + val.v; }); return t + z; }, 0), 0)); }
+  const acum = [0]; for (let i = 1; i <= ate; i++) { const d = D.diasG[i - 1], ant = D.diasG[i - 2] || "0000"; acum.push(acum[i - 1] + comMeta.reduce((s, l) => s + l.vend.reduce((t, v) => { let z = 0; v.val.forEach((val, dia) => { if (dia <= d && dia > ant) z += val.a + val.v; }); if (v.saldo && l.ate <= d && l.ate > ant) z += v.saldo.a + v.saldo.v; return t + z; }, 0), 0)); }
   const pts = acum.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
   const ticks = [0, .25, .5, .75, 1].map(f => `<line class="eixo" x1="${ml}" x2="${W - mr}" y1="${y(meta * f)}" y2="${y(meta * f)}"/><text x="${ml - 6}" y="${y(meta * f) + 4}" text-anchor="end">${Math.round(meta * f / 1000)}k</text>`).join("");
   const xl = [1, ate, N].filter((v, i, a) => v > 0 && a.indexOf(v) === i).map(i => `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${+D.diasG[i - 1].slice(8)}/${D.diasG[i - 1].slice(5, 7)}</text>`).join("");
@@ -368,7 +405,7 @@ function telaMetas() {
       <div class="mc-linha loja"><span>Meta da loja</span><div class="din"><input inputmode="decimal" aria-label="Assistência da ${esc(l.nome)}" placeholder="Assistência" data-ml="${l.id}" data-k="a" value="${campo(ml.a)}"></div><div class="din"><input inputmode="decimal" aria-label="Vendas da ${esc(l.nome)}" placeholder="Vendas" data-ml="${l.id}" data-k="v" value="${campo(ml.v)}"></div><span></span></div>
       <div class="mc-titulos"><span>Vendedor</span><span>Assistência</span><span>Vendas</span><span></span></div>
       ${at.map(v => { const m = metaV(v); return `<div class="mc-linha"><input data-vn="${v.id}" value="${esc(nomeV(v))}" aria-label="Nome do vendedor"><div class="din"><input inputmode="decimal" placeholder="sem meta" data-mv="${v.id}" data-k="a" value="${m ? campo(m.a) : ""}"></div><div class="din"><input inputmode="decimal" placeholder="sem meta" data-mv="${v.id}" data-k="v" value="${m ? campo(m.v) : ""}"></div><button class="link" data-a="sair-vend" data-v="${v.id}" title="Saiu da loja" aria-label="Tirar ${esc(v.nome)} da lista">×</button></div>`; }).join("")}
-      <div class="mc-acoes">${at.length ? `<button class="mini soft" data-a="dividir" data-loja="${l.id}">Dividir a meta entre ${at.length} vendedor${at.length > 1 ? "es" : ""}</button>` : ""}
+      <div class="mc-acoes">${S.mes === mesAtual() && at.length ? `<button class="mini soft" data-a="saldo" data-loja="${l.id}">Σ Saldo de abertura${l.ate ? ` (até ${l.ate.slice(8)}/${l.ate.slice(5, 7)})` : ""}</button>` : ""}${at.length ? `<button class="mini soft" data-a="dividir" data-loja="${l.id}">Dividir a meta entre ${at.length} vendedor${at.length > 1 ? "es" : ""}</button>` : ""}
         <span class="novo"><input id="novo-${l.id}" placeholder="Vendedor novo"><button class="mini soft" data-a="novo-vend" data-loja="${l.id}">${ICON.mais}</button></span></div>
     </div>`;
   }).join("");
@@ -472,6 +509,7 @@ document.addEventListener("click", async e => {
     if (a === "todos-vistos") { const L = avisos(); await api.marcarVistos(L); L.forEach(x => S.dados.vistos.set(x.chave, { chave: x.chave, gravidade: x.g, visto_em: new Date().toISOString() })); S.cache.d = null; toast("Todos marcados como vistos"); return desenhar(); }
     if (a === "desver") { await api.limparVistos(); await carregar(); return desenhar(); }
     if (a === "dia") return diaRede(lojaPor(rota().arg), b.dataset.dia);
+    if (a === "saldo") return saldoAbertura(lojaPor(b.dataset.loja));
     if (a === "fechar") return confirmarFechar();
     if (a === "relatorio") return relatorio();
     if (a === "ativar") return ativarAvisos();

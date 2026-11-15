@@ -2,8 +2,8 @@
    Gerente (login da loja): abre no fechamento do dia; painel da loja embaixo.
    Gestão e Admin: visão das lojas, metas em lote, calendário, avisos, relatório.
    Telas por endereço (#/…): o "voltar" do celular anda um passo, como nos outros apps. */
-import * as MR from "./regras.js?v=202611151803";
-import { criarApi, hoje } from "./api.js?v=202611151803";
+import * as MR from "./regras.js?v=202611151818";
+import { criarApi, hoje } from "./api.js?v=202611151818";
 
 const api = criarApi(window.CONFIG);
 const $ = id => document.getElementById(id);
@@ -66,6 +66,13 @@ const COR = { g: "No ritmo", a: "Atenção", r: "Abaixo" };
 const chip = c => c ? `<span class="cor ${c}">${COR[c]}</span>` : `<span class="cor p">Sem meta</span>`;
 const barra = (c, cls = "") => `<div class="mbar ${c.cor} ${cls}" role="img" aria-label="${P(c.pct)} da meta; deveria estar em ${P(c.ideal)}"><i style="width:${Math.min(100, c.pct * 100)}%"></i>${c.meta ? `<b style="left:${Math.min(100, c.ideal * 100)}%"></b>` : ""}</div>`;
 const corPrev = p => p >= 1 ? "g" : p >= .9 ? "a" : "r";
+const corVar = c => ({ g: "var(--g)", a: "var(--a)", r: "var(--r)" }[c] || "var(--faint)");
+const seloTxt = nome => { const p = String(nome).trim().split(/\s+/).pop(); return (p.length <= 3 ? p : p.slice(0, 2)).toUpperCase(); };
+const selo = (nome, forte) => `<span class="selo${forte ? " forte" : ""}" aria-hidden="true">${esc(seloTxt(nome))}</span>`;
+const AVAS = [["#ece8ff", "#4a2fc9"], ["#ddf4ea", "#0b6b48"], ["#fde6f1", "#9c0f56"], ["#fdeed6", "#7a4300"], ["#e3f0fb", "#11558f"]];
+const ava = (nome, i) => `<span class="ava" style="background:${AVAS[i % 5][0]};color:${AVAS[i % 5][1]}" title="${esc(nome)}">${esc(String(nome).trim().slice(0, 2).toUpperCase())}</span>`;
+const pill = (c, txt) => `<span class="pill ${c || "p"}">${txt || COR[c] || "Sem meta"}</span>`;
+const anel = (c, t = 140, esp = 13, txt = "da meta") => `<div class="anel" role="img" aria-label="${P(c.pct)} da meta; deveria estar em ${P(c.ideal)}" style="--p:${Math.min(100, c.pct * 100)};--i:${Math.min(100, c.ideal * 100)};--c:${corVar(c.cor)};--t:${t}px;--esp:${esp}px"><span><span><b>${P(c.pct)}</b><small>${txt}</small></span></span></div>`;
 
 /* ---------- rotas ---------- */
 const rota = () => { const [nome, arg] = location.hash.replace(/^#\/?/, "").split("/"); return { nome: nome || "inicio", arg: arg && decodeURIComponent(arg) }; };
@@ -108,8 +115,8 @@ async function telaLogin() {
 }
 
 /* ---------- cabeçalho da página ---------- */
-function cabeca(titulo, { voltar: v = false, mes = true } = {}) {
-  return `<div class="phead">${v ? `<button class="link voltar" data-a="voltar">‹ Voltar</button>` : ""}<h1>${titulo}</h1>
+function cabeca(titulo, { voltar: v = false, mes = true, sub = "" } = {}) {
+  return `<div class="phead">${v ? `<button class="link voltar" data-a="voltar">‹ Voltar</button>` : ""}<div class="ph-t"><h1>${titulo}</h1>${sub ? `<p>${sub}</p>` : ""}</div>
     ${mes ? `<span class="mes"><button class="link" data-a="mes" data-k="-1" aria-label="Mês anterior">‹</button><b>${nomeMes(S.mes)}</b><button class="link" data-a="mes" data-k="1" aria-label="Próximo mês">›</button></span>` : ""}</div>
     ${mes && S.mes !== mesAtual() ? `<button class="link" data-a="mes-atual" style="padding:0 0 8px;color:var(--accent)">Voltar para ${nomeMes(mesAtual()).toLowerCase()}</button>` : ""}`;
 }
@@ -345,26 +352,36 @@ function grafico() {
 function telaRede() {
   const D = S.dados, r = MR.contaRede(D), t = r.tot;
   if (!D.lojas.some(l => l.meta)) return `${cabeca("Metas da rede")}<div class="vazio">Nenhuma meta cadastrada em ${nomeMes(S.mes).toLowerCase()}.<br><button class="btn primary" data-a="ir" data-h="#/metas" style="margin-top:14px;width:auto">Cadastrar metas e vendedores</button></div>`;
-  const pend = D.lojas.filter(l => l.pend.length);
+  const pend = D.lojas.filter(l => l.pend.length), nDias = D.diasG.filter(x => x < D.hj).length;
   S.rank = D.lojas.flatMap(l => l.vend.filter(v => v.meta && v.ativo).map(v => ({ l, v, c: MR.contaVend(D, v, l).tot }))).sort((a, b) => b.c.pct - a.c.pct);
-  return `${cabeca("Metas da rede")}${faixaAvisos()}
-  <div class="kpis2">
-    <div><small>Realizado</small><b>${R(t.real)}</b><span>de ${R(t.meta)}</span></div>
-    <div><small>% da meta</small><b class="txt-${t.cor}">${P(t.pct)}</b><span>deveria estar em ${P(t.ideal)}</span></div>
-    <div><small>Falta</small><b>${R(t.falta)}</b><span>em ${t.rest} dias de venda</span></div>
-    <div><small>Precisa por dia</small><b>${R(t.diaria)}</b><span>a rede toda</span></div>
-    <div><small>Se continuar assim</small><b class="txt-${corPrev(t.projPct)}">${P(t.projPct)}</b><span>${R(t.proj)}</span></div>
-  </div>
-  <div class="painel" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:10px">${[["Assistência", r.a], ["Vendas", r.v]].map(([nome, x]) => `<div class="cat"><div class="l"><span style="color:var(--fg)">${nome} <span>${R(x.real)} de ${R(x.meta)}</span></span><span class="txt-${x.cor}" style="font-weight:800">${P(x.pct)}</span></div>${barra(x)}</div>`).join("")}</div>
-  ${pend.length ? `<div class="aviso" style="margin-top:10px"><b>Fechamento pendente:</b> ${pend.map(l => `${esc(l.nome)} (${l.pend.length} ${l.pend.length > 1 ? "dias" : "dia"})`).join(", ")}. Os números dessas lojas vão até o último dia fechado. Pendente não quer dizer que não vendeu.</div>` : ""}
-  <section class="sec"><h2>Lojas <small>toque para abrir</small></h2><div class="lojas">${D.lojas.map(l => {
-    const c = MR.contaLoja(D, l).tot;
-    return `<button class="mloja ${l.pend.length ? "pend" : c.cor}" data-a="ir" data-h="#/loja/${l.id}"><div class="cab"><h3>${esc(l.nome)}</h3>${l.pend.length ? `<span class="cor r">Pendente</span>` : chip(c.cor)}</div>
-      ${l.meta ? `<span class="pct txt-${c.cor}">${P(c.pct)}</span>${barra(c, "fina")}<small>${R(c.real)} de ${R(c.meta)}</small><small>${R(c.diaria)}/dia · previsão ${c.n ? P(c.projPct) : "—"}</small>` : `<small>${R(c.real)} · sem meta</small>`}</button>`;
+  const cat = (nome, x, cor) => `<div class="cat2"><div class="l">${nome} <span>${R(x.real)} de ${R(x.meta)} · ${P(x.pct)}</span></div><div class="barra2"><i style="width:${Math.min(100, x.pct * 100)}%;background:${cor}"></i><b style="left:${Math.min(100, x.ideal * 100)}%"></b></div></div>`;
+  return `${cabeca("Metas da rede", { sub: `${D.lojas.length} lojas · ${nDias} de ${D.diasG.length} dias de venda` })}
+  ${faixaAvisos()}
+  <section class="cartao hero2" aria-label="Resumo da rede">
+    ${anel(t, 150, 14)}
+    <div style="min-width:0">
+      ${pill(t.cor, `${COR[t.cor]} · deveria estar em ${P(t.ideal)}`)}
+      <div class="valor2"><b class="num">${R(t.real)}</b> <span>de ${R(t.meta)}</span></div>
+      <div class="kpis3">
+        <div><b class="num">${R(t.falta)}</b><span>falta em ${t.rest} dias</span></div>
+        <div><b class="num">${R(t.diaria)}</b><span>precisa vender por dia</span></div>
+        <div><b class="num t-${corPrev(t.projPct)}">${R(t.proj)}</b><span>se continuar assim (${P(t.projPct)})</span></div>
+      </div>
+      <div class="cats2">${cat("Assistência", r.a, "var(--assist)")}${cat("Vendas", r.v, "var(--vendas)")}</div>
+    </div>
+  </section>
+  ${pend.length ? `<div class="alerta2" role="status"><span aria-hidden="true">!</span><span><b>Fechamento pendente:</b> ${pend.map(l => `${esc(l.nome)} (${l.pend.length} ${l.pend.length > 1 ? "dias" : "dia"})`).join(", ")}. Os números dessas lojas vão até o último dia fechado. Pendente não quer dizer que não vendeu.</span></div>` : ""}
+  <section class="sec"><div class="cab2"><h2>Lojas</h2><span class="rotulo">toque para abrir</span></div>
+  <div class="lojas2">${D.lojas.map(l => {
+    const c = MR.contaLoja(D, l).tot, at = l.vend.filter(v => v.ativo);
+    return `<button class="cl${l.pend.length ? " pend" : ""}" data-a="ir" data-h="#/loja/${l.id}">
+      <span class="cima">${selo(l.nome)}<h3>${esc(l.nome)}</h3>${l.pend.length ? pill("r", "Pendente") : pill(c.cor)}</span>
+      ${l.meta ? `<span class="meio"><b class="num t-${c.cor || "p"}">${P(c.pct)}</b><span class="mb"><span class="barra2 fina"><i style="width:${Math.min(100, c.pct * 100)}%;background:${corVar(c.cor)}"></i><b style="left:${Math.min(100, c.ideal * 100)}%"></b></span><small>${R(c.real)} de ${R(c.meta)}</small></span></span>` : `<small>${R(c.real)} · sem meta</small>`}
+      <span class="pe2"><span class="avas">${at.slice(0, 4).map((v, i) => ava(v.nome, i)).join("")}</span><small>${l.meta && c.n ? `previsão ${P(c.projPct)}` : ""}</small></span></button>`;
   }).join("")}</div></section>
   <section class="sec dois">
-    <div class="painel graf"><h3>Realizado × onde deveria estar</h3>${grafico()}</div>
-    <div class="painel"><h3>Ranking de vendedores</h3>${S.rank.length ? `<ol class="rank">${S.rank.map((x, i) => `<li data-a="rank" data-i="${i}"><span>${esc(x.v.nome)} <small>${esc(x.l.nome)}</small></span><b class="txt-${x.c.cor}">${P(x.c.pct)}</b><i class="ponto ${x.c.cor}"></i></li>`).join("")}</ol>` : `<p class="hint">Sem vendedores com meta.</p>`}</div>
+    <div class="cartao graf"><div class="cab2"><h2>Realizado × onde deveria estar</h2><span class="rotulo">rede</span></div>${grafico()}</div>
+    <div class="cartao"><div class="cab2"><h2>Ranking de vendedores</h2></div>${S.rank.length ? `<ol class="rank2">${S.rank.map((x, i) => `<li data-a="rank" data-i="${i}"><span class="pos">${i + 1}</span>${ava(x.v.nome, i)}<span class="n"><b>${esc(x.v.nome)}</b><small>${esc(x.l.nome)}</small></span>${pill(x.c.cor, P(x.c.pct))}</li>`).join("")}</ol>` : `<p class="hint">Sem vendedores com meta.</p>`}</div>
   </section>
   <section class="sec"><button class="btn soft" data-a="relatorio">${ICON.doc} Relatório de ${nomeMes(S.mes).toLowerCase()}: tabela e planilha</button></section>`;
 }
@@ -488,7 +505,9 @@ function desenhar() {
   else html = nome === "lancar" ? telaLancar() : telaGerente();
   if (html === null) return desenhar();
   const abas = ehRede() ? [["#/", "Visão geral", nome === "inicio" || nome === "loja"], ["#/metas", "Metas", nome === "metas"], ["#/avisos", "Avisos", nome === "avisos"]] : null;
-  alvo.innerHTML = `<div class="mt">${abas ? `<nav class="tabs">${abas.map(([h, t, on]) => `<button class="${on ? "on" : ""}" data-a="ir" data-h="${h}">${t}</button>`).join("")}</nav>` : ""}${html}</div>`;
+  const nav = $("navtopo"); nav.hidden = !abas;
+  if (abas) nav.innerHTML = abas.map(([h, t, on]) => `<button class="${on ? "on" : ""}" data-a="ir" data-h="${h}" ${on ? 'aria-current="page"' : ""}>${t}</button>`).join("");
+  alvo.innerHTML = `<div class="mt">${html}</div>`;
   if (nome === "metas" && $("acessos")) $("acessos").addEventListener("toggle", e => { if (e.target.open) acessos(); });
   if (S.foco) { const el = $(S.foco); S.foco = null; if (el) setTimeout(() => el.scrollIntoView({ block: "center" }), 0); }
   if (nome === "lancar" && matchMedia("(pointer:fine)").matches && !document.activeElement.matches("input")) { const c = [...document.querySelectorAll("[data-lv]")]; (c.find(x => !x.value) || c[0] || { focus() { } }).focus(); }

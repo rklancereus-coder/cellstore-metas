@@ -2,8 +2,8 @@
    Gerente (login da loja): abre no fechamento do dia; painel da loja embaixo.
    Gestão e Admin: visão das lojas, metas em lote, calendário, avisos, relatório.
    Telas por endereço (#/…): o "voltar" do celular anda um passo, como nos outros apps. */
-import * as MR from "./regras.js?v=202611151703";
-import { criarApi, hoje } from "./api.js?v=202611151703";
+import * as MR from "./regras.js?v=202611151715";
+import { criarApi, hoje } from "./api.js?v=202611151715";
 
 const api = criarApi(window.CONFIG);
 const $ = id => document.getElementById(id);
@@ -233,10 +233,12 @@ function telaLancar() {
   <div class="lanc">
     <p class="lead" style="margin:0">${data(dia)} · ${esc(l.nome)}${fila.length > 1 ? ` · <b>dia 1 de ${fila.length} para lançar</b>` : ""}</p>
     ${f && f.status === "aberto" ? `<div class="aviso"><b>A gestão reabriu este dia.</b> Confira os valores e feche de novo.</div>` : ""}
+    <div class="tab-lanc"><div class="tl-cab" aria-hidden="true"><span>Vendedor</span><span>Assistência</span><span>Vendas</span></div>
     ${vs.map((v, i) => `<div class="lv"><h3>${esc(v.nome)} <span id="sub-${v.id}">${R(num(r[v.id].a) + num(r[v.id].v))}</span></h3>
       <div class="row"><label class="f"><span>Assistência</span><div class="din"><input id="in-${i}-a" inputmode="decimal" enterkeyhint="next" placeholder="0" autocomplete="off" data-lv="${v.id}" data-k="a" value="${esc(r[v.id].a || "")}"><button type="button" class="tecla-mais" data-a="tecla-mais" data-alvo="in-${i}-a" tabindex="-1" aria-label="Somar outro valor">+</button></div><small class="conta" id="cc-${v.id}-a">${contaTxt(r[v.id].a)}</small></label>
       <label class="f"><span>Vendas</span><div class="din"><input id="in-${i}-v" inputmode="decimal" enterkeyhint="${i === vs.length - 1 ? "done" : "next"}" placeholder="0" autocomplete="off" data-lv="${v.id}" data-k="v" value="${esc(r[v.id].v || "")}"><button type="button" class="tecla-mais" data-a="tecla-mais" data-alvo="in-${i}-v" tabindex="-1" aria-label="Somar outro valor">+</button></div><small class="conta" id="cc-${v.id}-v">${contaTxt(r[v.id].v)}</small></label></div></div>`).join("")}
-    <p class="hint dica-soma">Dica: digite as anotações com <b>+</b> (ex.: <b>150+200+80</b>) que o app soma. Para tirar um valor, use <b>−</b>.</p>
+    </div>
+    <p class="hint dica-soma">Dica: digite as anotações com <b>+</b> (ex.: <b>150+200+80</b>) que o app soma. Para tirar um valor, use <b>−</b>.<span class="so-teclado"><br><b>Tab</b> ou <b>Enter</b>: próximo campo · <b>Ctrl+Enter</b>: fechar o dia</span></p>
     <div class="tot-dia"><span>Total do dia</span><span id="totdia">${R(tot)}</span></div>
     <button class="btn primary" data-a="fechar">Fechar o dia</button>
     <p class="hint" style="margin:0;text-align:center">O que você digita fica guardado neste aparelho até fechar.</p>
@@ -489,6 +491,7 @@ function desenhar() {
   alvo.innerHTML = `<div class="mt">${abas ? `<nav class="tabs">${abas.map(([h, t, on]) => `<button class="${on ? "on" : ""}" data-a="ir" data-h="${h}">${t}</button>`).join("")}</nav>` : ""}${html}</div>`;
   if (nome === "metas" && $("acessos")) $("acessos").addEventListener("toggle", e => { if (e.target.open) acessos(); });
   if (S.foco) { const el = $(S.foco); S.foco = null; if (el) setTimeout(() => el.scrollIntoView({ block: "center" }), 0); }
+  if (nome === "lancar" && matchMedia("(pointer:fine)").matches && !document.activeElement.matches("input")) { const c = [...document.querySelectorAll("[data-lv]")]; (c.find(x => !x.value) || c[0] || { focus() { } }).focus(); }
   mostrarInstalar();
   if (S.abrirRel && ehRede() && S.dados.mes === S.mes) { S.abrirRel = false; relatorio(); }
 }
@@ -561,10 +564,19 @@ document.addEventListener("change", async e => {
 });
 // Enter passa para o próximo campo; no último, abre o "Fechar o dia"
 document.addEventListener("keydown", e => {
-  if (e.key !== "Enter" || !e.target.dataset || !e.target.dataset.lv) return;
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && rota().nome === "lancar" && $("modal").hidden && S.lanc) { e.preventDefault(); return confirmarFechar(); }
+  if (e.key !== "Enter" || !e.target.dataset || !e.target.dataset.lv || !$("modal").hidden) return;
   e.preventDefault();
   const c = [...document.querySelectorAll("[data-lv]")], i = c.indexOf(e.target);
   c[i + 1] ? c[i + 1].focus() : confirmarFechar();
+});
+// janela aberta: Enter confirma (o botão principal), Esc volta. Não age no mesmo Enter que abriu a janela.
+document.addEventListener("keydown", e => {
+  if ($("modal").hidden || e.defaultPrevented) return;
+  if (e.key === "Escape") { e.preventDefault(); return fecharModal(); }
+  const ok = $("mok"); if (e.key !== "Enter" || !ok || ok.disabled) return;
+  const foco = document.activeElement; if (foco && (foco.tagName === "BUTTON" || foco.tagName === "TEXTAREA" || $("modal").contains(foco) && foco.tagName === "INPUT")) return;
+  e.preventDefault(); ok.click();
 });
 
 /* ---------- instalar o app ---------- */

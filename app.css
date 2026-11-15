@@ -101,3 +101,21 @@
 .mt .dica-soma{margin:0;text-align:center}
 .mt .din .tecla-mais{display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:var(--r-s);background:var(--sunk);color:var(--fg);font-size:20px;font-weight:800;line-height:1}
 @media (pointer:coarse){.mt .lanc .din .tecla-mais{display:grid;place-items:center}.mt .lanc .din input{padding-right:46px}}
+
+/* lançamento: cartões no celular, tabela no notebook */
+.mt .tab-lanc{display:grid;gap:12px}
+.mt .tl-cab{display:none}
+.mt .so-teclado{display:none}
+@media (pointer:fine){.mt .so-teclado{display:inline}}
+@media (min-width:720px){
+  .mt .tab-lanc{gap:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);overflow:hidden}
+  .mt .tl-cab{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1.3fr);gap:12px;padding:10px 16px;background:var(--sunk);font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .mt .lanc .tab-lanc .lv{grid-template-columns:minmax(0,1fr) minmax(0,2.6fr);align-items:start;gap:12px;border:0;border-radius:0;border-top:1px solid var(--line);padding:10px 16px}
+  .mt .lanc .tab-lanc .lv:first-of-type{border-top:0}
+  .mt .lanc .tab-lanc .lv h3{flex-direction:column;align-items:flex-start;gap:2px;padding-top:12px;font-size:16px}
+  .mt .lanc .tab-lanc .lv h3 span{font-size:13px}
+  .mt .lanc .tab-lanc .lv .row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+  .mt .lanc .tab-lanc .lv .f>span{display:none}
+  .mt .lanc .tab-lanc .din input{font-size:17px;padding-top:11px;padding-bottom:11px}
+  .mt .lanc .tab-lanc .lv:focus-within{background:var(--accent-soft)}
+}

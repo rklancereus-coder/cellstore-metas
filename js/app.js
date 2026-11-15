@@ -2,8 +2,8 @@
    Gerente (login da loja): abre no fechamento do dia; painel da loja embaixo.
    Gestão e Admin: visão das lojas, metas em lote, calendário, avisos, relatório.
    Telas por endereço (#/…): o "voltar" do celular anda um passo, como nos outros apps. */
-import * as MR from "./regras.js?v=202611151818";
-import { criarApi, hoje } from "./api.js?v=202611151818";
+import * as MR from "./regras.js?v=202611151825";
+import { criarApi, hoje } from "./api.js?v=202611151825";
 
 const api = criarApi(window.CONFIG);
 const $ = id => document.getElementById(id);
@@ -406,48 +406,97 @@ function relatorio() {
   }, "box-rel");
 }
 
-/* ---------- gestão: metas em lote ---------- */
+/* ---------- gestão: metas (leitura; uma loja por vez em edição) ---------- */
 const sujo = () => !!S.edicao && Object.keys(S.edicao.lojas).length + Object.keys(S.edicao.vend).length + Object.keys(S.edicao.nomes).length > 0;
-const nSujo = () => S.edicao ? Object.keys(S.edicao.lojas).length + Object.keys(S.edicao.vend).length + Object.keys(S.edicao.nomes).length : 0;
-const txtSujo = () => { const n = nSujo(); return `${n} ${n > 1 ? "alterações" : "alteração"} sem salvar`; };
 const metaL = l => S.edicao.lojas[l.id] || l.meta || { a: 0, v: 0 };
 const metaV = v => v.id in S.edicao.vend ? S.edicao.vend[v.id] : v.meta;
 const nomeV = v => S.edicao.nomes[v.id] ?? v.nome;
-function resumoLoja(l) {
-  const ml = metaL(l), at = l.vend.filter(v => v.ativo), sa = at.reduce((s, v) => s + ((metaV(v) || {}).a || 0), 0), sv = at.reduce((s, v) => s + ((metaV(v) || {}).v || 0), 0);
-  const ok = !ml.a && !ml.v || (sa === ml.a && sv === ml.v);
-  return `<span>Meta da loja: <b>${R(ml.a + ml.v)}</b></span>${ok ? (ml.a || ml.v ? `<span class="txt-g">✓ Vendedores somam a meta da loja</span>` : "") : `<span class="txt-a">Vendedores somam Assist. ${R(sa)} · Vendas ${R(sv)}</span>`}`;
+const ativos = l => l.vend.filter(v => v.ativo);
+const somaVend = l => ativos(l).reduce((s, v) => { const m = metaV(v) || { a: 0, v: 0 }; return { a: s.a + m.a, v: s.v + m.v }; }, { a: 0, v: 0 });
+function statusLoja(l) {
+  const ml = metaL(l), sv = somaVend(l), dif = ml.a + ml.v - sv.a - sv.v;
+  if (!ml.a && !ml.v) return { c: "p", txt: "Sem meta" };
+  if (sv.a === ml.a && sv.v === ml.v) return { c: "g", txt: "✓ Soma certa" };
+  if (!sv.a && !sv.v) return { c: "a", txt: "Vendedores sem meta" };
+  return { c: "a", txt: dif > 0 ? `Faltam ${R(dif)} nos vendedores` : dif < 0 ? `Vendedores passam ${R(-dif)}` : "Divisão diferente por categoria" };
+}
+// parte de cada vendedor = % do total da loja
+const parteV = (v, l) => { const ml = metaL(l), m = metaV(v), t = ml.a + ml.v; return t && m ? Math.round((m.a + m.v) / t * 100) : 0; };
+function aplicarPartes(l, mudou = {}) {
+  const ml = metaL(l), at = ativos(l), partes = Object.fromEntries(at.map(v => [v.id, mudou[v.id] ?? parteV(v, l)]));
+  at.forEach(v => { const pc = partes[v.id]; S.edicao.vend[v.id] = pc ? { a: r10(ml.a * pc / 100), v: r10(ml.v * pc / 100) } : null; });
+  // fechando 100%, a sobra do arredondamento vai para quem tem a maior parte (a soma bate com a meta da loja)
+  if (at.reduce((t, v) => t + partes[v.id], 0) === 100) {
+    const maior = at.reduce((m, v) => partes[v.id] > partes[m.id] ? v : m, at[0]), sv = somaVend(l), x = S.edicao.vend[maior.id];
+    if (x) { x.a += ml.a - sv.a; x.v += ml.v - sv.v; }
+  }
+}
+function textoSoma(l) {
+  const ml = metaL(l), tot = ml.a + ml.v, sp = ativos(l).reduce((t, v) => t + parteV(v, l), 0), st = statusLoja(l);
+  if (!tot) return { c: "p", txt: "Defina a meta da loja primeiro" };
+  return st.c === "g" ? { c: "g", txt: `✓ Soma 100% · ${R(tot)}` } : { c: "a", txt: `Soma ${sp}% · ${st.txt}` };
+}
+function linhaLeitura(l) {
+  const ml = metaL(l), at = ativos(l), tot = ml.a + ml.v, st = statusLoja(l);
+  return `<div class="linha" id="ln-${l.id}">${selo(l.nome)}
+    <div class="ln-t"><h3>${esc(l.nome)}</h3><div class="sub">${tot ? R(tot) : "Sem meta"} · ${at.length} vendedor${at.length !== 1 ? "es" : ""}${l.ate ? ` · Σ saldo até ${l.ate.slice(8)}/${l.ate.slice(5, 7)}` : ""}</div></div>
+    <div class="dv">${tot ? `<div class="divisao"><i style="width:${ml.a / tot * 100}%;background:var(--assist)"></i><i style="width:${ml.v / tot * 100}%;background:var(--vendas)"></i></div><div class="legenda"><span style="--c:var(--assist)">Assistência ${R(ml.a)}</span><span style="--c:var(--vendas)">Vendas ${R(ml.v)}</span></div>` : `<span class="hint">Defina a meta da loja</span>`}</div>
+    <div class="vs"><span class="avas">${at.slice(0, 5).map((v, i) => ava(nomeV(v), i)).join("")}</span><span class="status-v t-${st.c}">${st.txt}</span></div>
+    <button class="bt" data-a="editar-loja" data-loja="${l.id}">Editar</button></div>`;
+}
+function editorLoja(l) {
+  const ml = metaL(l), at = ativos(l), ts = textoSoma(l);
+  return `<div class="linha aberta" id="ln-${l.id}">${selo(l.nome, true)}<div class="ln-t"><h3>${esc(l.nome)}</h3><div class="sub">editando · as outras lojas ficam só para leitura</div></div></div>
+  <div class="editor2">
+    <div class="campos2">
+      <label class="campo2"><span>Meta de assistência</span><span class="cv"><em>R$</em><input inputmode="decimal" data-ml="${l.id}" data-k="a" value="${campo(ml.a)}" placeholder="0"></span></label>
+      <label class="campo2"><span>Meta de vendas</span><span class="cv"><em>R$</em><input inputmode="decimal" data-ml="${l.id}" data-k="v" value="${campo(ml.v)}" placeholder="0"></span></label>
+    </div>
+    <div class="ed-div"><span class="rotulo">Divisão entre os vendedores</span><span class="soma t-${ts.c}" id="soma-${l.id}">${ts.txt}</span></div>
+    ${at.length ? `<div class="vds">${at.map((v, i) => { const pc = parteV(v, l), m = metaV(v) || { a: 0, v: 0 }; return `<div class="vd">${ava(nomeV(v), i)}<input class="vn" data-vn="${v.id}" value="${esc(nomeV(v))}" aria-label="Nome do vendedor"><input type="range" min="0" max="100" step="1" value="${pc}" data-pv="${v.id}" data-loja="${l.id}" aria-label="Parte de ${esc(v.nome)} na meta"><output id="out-${v.id}"><b>${pc}%</b><small>${R(m.a + m.v)}</small></output><button class="x" data-a="sair-vend" data-v="${v.id}" title="Saiu da loja" aria-label="Tirar ${esc(v.nome)} da lista">×</button></div>`; }).join("")}</div>
+    <details class="valores"><summary>Ajustar os valores em R$ de cada vendedor (quando a divisão muda entre as categorias)</summary>
+      <div class="vt"><span></span><span>Assistência</span><span>Vendas</span>${at.map(v => { const m = metaV(v); return `<span>${esc(nomeV(v))}</span><span class="din"><input inputmode="decimal" placeholder="sem meta" data-mv="${v.id}" data-k="a" value="${m ? campo(m.a) : ""}"></span><span class="din"><input inputmode="decimal" placeholder="sem meta" data-mv="${v.id}" data-k="v" value="${m ? campo(m.v) : ""}"></span>`; }).join("")}</div></details>` : `<p class="hint" style="margin:0">Nenhum vendedor ainda. Cadastre o primeiro abaixo.</p>`}
+    <div class="acoes2">
+      ${at.length ? `<button class="bt" data-a="dividir" data-loja="${l.id}">Dividir igual</button>` : ""}
+      <span class="novo"><input id="novo-${l.id}" placeholder="Nome do vendedor novo" aria-label="Nome do vendedor novo"><button class="bt" data-a="novo-vend" data-loja="${l.id}">+ Adicionar</button></span>
+      ${S.mes === mesAtual() && at.length ? `<button class="bt" data-a="saldo" data-loja="${l.id}">Σ Saldo de abertura${l.ate ? ` (até ${l.ate.slice(8)}/${l.ate.slice(5, 7)})` : ""}</button>` : ""}
+      <span class="esp"></span>
+      <button class="bt fant" data-a="cancelar-ed">Cancelar</button>
+      <button class="bt prim" data-a="salvar">Salvar ${esc(l.nome)}</button>
+    </div>
+  </div>`;
+}
+function atualizarEditor(lojaId) {
+  const l = lojaPor(lojaId); if (!l) return;
+  const ts = textoSoma(l), el = $("soma-" + l.id); if (el) { el.className = "soma t-" + ts.c; el.textContent = ts.txt; }
+  ativos(l).forEach(v => {
+    const pc = parteV(v, l), m = metaV(v) || { a: 0, v: 0 };
+    const o = $("out-" + v.id); if (o) o.innerHTML = `<b>${pc}%</b><small>${R(m.a + m.v)}</small>`;
+    document.querySelectorAll(`[data-pv="${v.id}"]`).forEach(r => { if (r !== document.activeElement) r.value = pc; });
+    document.querySelectorAll(`[data-mv="${v.id}"]`).forEach(i => { if (i !== document.activeElement) { const mm = metaV(v); i.value = mm ? campo(mm[i.dataset.k]) : ""; } });
+  });
 }
 function telaMetas() {
   const D = S.dados;
   if (!S.edicao || S.edicao.mes !== S.mes) S.edicao = { mes: S.mes, lojas: {}, vend: {}, nomes: {} };
   const cfgDesc = new Map((D.raw.config || []).map(c => [c.chave, c.descricao])), pad = MR.dow(D.dias[0]);
-  const cartoes = D.lojas.map(l => {
-    const ml = metaL(l), at = l.vend.filter(v => v.ativo);
-    return `<div class="mcard" id="mc-${l.id}">
-      <div class="mc-cab"><h3>${esc(l.nome)}</h3><div class="mc-res" id="res-${l.id}">${resumoLoja(l)}</div></div>
-      <div class="mc-linha loja"><span>Meta da loja</span><div class="din"><input inputmode="decimal" aria-label="Assistência da ${esc(l.nome)}" placeholder="Assistência" data-ml="${l.id}" data-k="a" value="${campo(ml.a)}"></div><div class="din"><input inputmode="decimal" aria-label="Vendas da ${esc(l.nome)}" placeholder="Vendas" data-ml="${l.id}" data-k="v" value="${campo(ml.v)}"></div><span></span></div>
-      <div class="mc-titulos"><span>Vendedor</span><span>Assistência</span><span>Vendas</span><span></span></div>
-      ${at.map(v => { const m = metaV(v); return `<div class="mc-linha"><input data-vn="${v.id}" value="${esc(nomeV(v))}" aria-label="Nome do vendedor"><div class="din"><input inputmode="decimal" placeholder="sem meta" data-mv="${v.id}" data-k="a" value="${m ? campo(m.a) : ""}"></div><div class="din"><input inputmode="decimal" placeholder="sem meta" data-mv="${v.id}" data-k="v" value="${m ? campo(m.v) : ""}"></div><button class="link" data-a="sair-vend" data-v="${v.id}" title="Saiu da loja" aria-label="Tirar ${esc(v.nome)} da lista">×</button></div>`; }).join("")}
-      <div class="mc-acoes">${S.mes === mesAtual() && at.length ? `<button class="mini soft" data-a="saldo" data-loja="${l.id}">Σ Saldo de abertura${l.ate ? ` (até ${l.ate.slice(8)}/${l.ate.slice(5, 7)})` : ""}</button>` : ""}${at.length ? `<button class="mini soft" data-a="dividir" data-loja="${l.id}">Dividir a meta entre ${at.length} vendedor${at.length > 1 ? "es" : ""}</button>` : ""}
-        <span class="novo"><input id="novo-${l.id}" placeholder="Vendedor novo"><button class="mini soft" data-a="novo-vend" data-loja="${l.id}">${ICON.mais}</button></span></div>
-    </div>`;
-  }).join("");
-  const lims = Object.keys(MR.CFG);
-  return `${cabeca("Metas e vendedores")}
-  <p class="hint" style="margin:0 0 10px">Digite as metas e toque em <b>Salvar</b> no fim. Vendedor sem valor fica "sem meta". O × tira quem saiu (o que já vendeu continua no histórico).</p>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="mini soft" data-a="copiar">Copiar metas de ${nomeMes(MR.mesMais(S.mes, -1)).split(" ")[0].toLowerCase()}</button></div>
-  <div class="mcards">${cartoes}</div>
-  <div class="savebar" id="savebar" ${sujo() ? "" : "hidden"}><span id="nsujo">${txtSujo()}</span><button class="mini soft" data-a="descartar">Descartar</button><button class="mini primary" data-a="salvar">Salvar</button></div>
-  <section class="sec"><h2>Dias de venda <small>${D.diasG.length} dias · toque para abrir/fechar um dia na rede</small></h2>
-  <div class="painel"><div class="cal">${MR.SEM.map(s => `<span class="ds">${s}</span>`).join("")}${"<span></span>".repeat(pad)}${D.dias.map(d => { const ab = D.calG.has(d) ? D.calG.get(d) : MR.dow(d) !== 0; return `<button class="${ab ? "on" : ""}" data-a="cal" data-dia="${d}" title="${ab ? "Loja abre" : "Fechado"}">${+d.slice(8)}</button>`; }).join("")}</div>
-  <p class="hint" style="margin:0">Sem marcação, vale segunda a sábado. A meta por dia e a previsão usam só os dias abertos.</p></div></section>
-  <section class="sec"><details class="painel"><summary><b>Limites dos avisos</b> <small class="hint">(ajuste fino)</small></summary><div class="lim" style="margin-top:10px">${lims.map(k => `<span>${esc(cfgDesc.get(k) || k)}</span><input inputmode="decimal" data-cfg="${k}" value="${String(D.cfg[k]).replace(".", ",")}">`).join("")}</div></details></section>
-  ${papel() === "admin" ? `<section class="sec"><details class="painel" id="acessos"><summary><b>Acessos da Gestão</b> <small class="hint">(só Admin)</small></summary><div id="acessos-corpo" style="margin-top:10px"><p class="hint">Carregando…</p></div></details></section>` : ""}`;
-}
-function atualizarResumo(lojaId) {
-  const el = $("res-" + lojaId); if (el) el.innerHTML = resumoLoja(lojaPor(lojaId));
-  $("savebar").hidden = !sujo(); $("nsujo").textContent = txtSujo();
+  const comMeta = D.lojas.filter(l => { const m = metaL(l); return m.a || m.v; }).length;
+  const totRede = D.lojas.reduce((t, l) => { const m = metaL(l); return t + m.a + m.v; }, 0), nV = D.lojas.reduce((t, l) => t + ativos(l).length, 0);
+  const dif = D.lojas.filter(l => statusLoja(l).c === "a").length, lims = Object.keys(MR.CFG);
+  return `${cabeca("Metas e vendedores", { sub: "Abra uma loja para editar. As outras ficam só para leitura." })}
+  <div class="resumo2">
+    <div><b class="num">${R(totRede)}</b><span>meta da rede</span></div>
+    <div><b class="num">${comMeta} de ${D.lojas.length}</b><span>lojas com meta</span></div>
+    <div><b class="num">${nV}</b><span>vendedores</span></div>
+    <div class="${dif ? "rosa" : "verde"}"><b class="num">${dif ? `${dif} loja${dif > 1 ? "s" : ""}` : "Tudo certo"}</b><span>${dif ? "com soma diferente" : "as somas batem"}</span></div>
+  </div>
+  <div class="acoes2" style="margin:14px 0 12px"><button class="bt" data-a="copiar">Copiar metas de ${nomeMes(MR.mesMais(S.mes, -1)).split(" ")[0].toLowerCase()}</button></div>
+  <section class="lista2" aria-label="Metas por loja">${D.lojas.map(l => l.id === S.editLoja ? editorLoja(l) : linhaLeitura(l)).join("")}</section>
+  <section class="sec cartao"><div class="cab2"><h2>Dias de venda</h2><span class="rotulo">${D.diasG.length} dias</span></div>
+    <div class="cal">${MR.SEM.map(s => `<span class="ds">${s}</span>`).join("")}${"<span></span>".repeat(pad)}${D.dias.map(d => { const ab = D.calG.has(d) ? D.calG.get(d) : MR.dow(d) !== 0; return `<button class="${ab ? "on" : ""}" data-a="cal" data-dia="${d}" title="${ab ? "Loja abre" : "Fechado"}">${+d.slice(8)}</button>`; }).join("")}</div>
+    <p class="hint" style="margin:10px 0 0">Toque num dia para abrir ou fechar na rede. Sem marcação, vale segunda a sábado.</p></section>
+  <section class="sec"><details class="cartao"><summary><b>Limites dos avisos</b> <small class="hint">ajuste fino</small></summary><div class="lim" style="margin-top:12px">${lims.map(k => `<span>${esc(cfgDesc.get(k) || k)}</span><input inputmode="decimal" data-cfg="${k}" value="${String(D.cfg[k]).replace(".", ",")}">`).join("")}</div></details></section>
+  ${papel() === "admin" ? `<section class="sec"><details class="cartao" id="acessos"><summary><b>Acessos da Gestão</b> <small class="hint">só Admin</small></summary><div id="acessos-corpo" style="margin-top:12px"><p class="hint">Carregando…</p></div></details></section>` : ""}`;
 }
 async function salvarMetas() {
   const e = S.edicao;
@@ -455,7 +504,7 @@ async function salvarMetas() {
   const vend = Object.entries(e.vend).map(([vendedor_id, m]) => ({ vendedor_id, m: m && (m.a || m.v) ? m : null }));
   const nomes = Object.entries(e.nomes).filter(([, n]) => n.trim()).map(([id, nome]) => ({ id, nome: nome.trim() }));
   await api.salvarMetasLote(S.mes, lojas, vend, nomes);
-  S.edicao = null; await carregar(); toast("Metas salvas"); desenhar();
+  S.edicao = null; S.editLoja = null; await carregar(); toast("Metas salvas"); desenhar();
 }
 async function acessos() {
   const corpo = $("acessos-corpo"); if (!corpo) return;
@@ -523,7 +572,7 @@ document.addEventListener("click", async e => {
     if (a === "ir") return ir(b.dataset.h);
     if (a === "voltar") return voltar();
     if (a === "tentar") return desenhar();
-    if (a === "mes") { if (sujo() && !confirm("Há metas sem salvar. Trocar de mês e descartar?")) return; S.edicao = null; S.mes = MR.mesMais(S.mes, +b.dataset.k); return desenhar(); }
+    if (a === "mes") { if (sujo() && !confirm("Há metas sem salvar. Trocar de mês e descartar?")) return; S.edicao = null; S.editLoja = null; S.mes = MR.mesMais(S.mes, +b.dataset.k); return desenhar(); }
     if (a === "mes-atual") { S.mes = mesAtual(); return desenhar(); }
     if (a === "rank") { const x = S.rank[+b.dataset.i]; S.foco = "v-" + x.v.id; return ir("#/loja/" + x.l.id); }
     if (a === "av-ir") {
@@ -544,12 +593,17 @@ document.addEventListener("click", async e => {
     if (a === "copiar") { const n = await api.copiarMetas(MR.mesMais(S.mes, -1), S.mes); toast(n ? `${n} metas copiadas` : "Nada para copiar (ou já estava tudo cadastrado)"); S.edicao = null; await carregar(); return desenhar(); }
     if (a === "cal") { const d = b.dataset.dia, D = S.dados, ab = D.calG.has(d) ? D.calG.get(d) : MR.dow(d) !== 0; await api.salvarCalendario(d, !ab); await carregar(); return desenhar(); }
     if (a === "salvar") { b.disabled = true; try { await salvarMetas(); } finally { b.disabled = false; } return; }
-    if (a === "descartar") { S.edicao = null; return desenhar(); }
+    if (a === "editar-loja") {
+      const id = b.dataset.loja, abrir = () => { S.edicao = null; S.editLoja = id; desenhar(); const el = $("ln-" + id); if (el) el.scrollIntoView({ block: "start", behavior: "smooth" }); };
+      if (sujo() && S.editLoja && S.editLoja !== id) return confirmar(`Descartar as alterações da ${esc(lojaPor(S.editLoja).nome)}?`, "Elas ainda não foram salvas.", "Descartar e abrir", abrir);
+      return abrir();
+    }
+    if (a === "cancelar-ed") { S.edicao = null; S.editLoja = null; return desenhar(); }
     if (a === "dividir") {
       const l = lojaPor(b.dataset.loja), at = l.vend.filter(v => v.ativo), ml = metaL(l);
       if (!ml.a && !ml.v) return toast("Digite primeiro a meta da loja.");
       at.forEach((v, i) => { const ult = i === at.length - 1; S.edicao.vend[v.id] = { a: ult ? ml.a - r10(ml.a / at.length) * (at.length - 1) : r10(ml.a / at.length), v: ult ? ml.v - r10(ml.v / at.length) * (at.length - 1) : r10(ml.v / at.length) }; });
-      toast("Meta dividida. Confira e toque em Salvar."); return desenhar();
+      toast("Dividido igualmente. Confira e toque em Salvar."); return atualizarEditor(l.id);
     }
     if (a === "novo-vend") { const i = $("novo-" + b.dataset.loja), nome = i.value.trim(); if (!nome) return i.focus(); await api.salvarVendedor({ loja_id: b.dataset.loja, nome, ordem: lojaPor(b.dataset.loja).vend.length }); toast(`${nome} cadastrado`); await carregar(); return desenhar(); }
     if (a === "sair-vend") {
@@ -572,9 +626,10 @@ document.addEventListener("input", e => {
     const cc = $(`cc-${d.lv}-${d.k}`); if (cc) cc.textContent = contaTxt(i.value);
     $("totdia").textContent = R(Object.values(r).reduce((s, y) => s + num(y.a) + num(y.v), 0));
   }
-  if (d.ml) { const l = lojaPor(d.ml); S.edicao.lojas[l.id] = { ...metaL(l), [d.k]: num(i.value) }; atualizarResumo(l.id); }
-  if (d.mv) { const v = S.dados.lojas.flatMap(l => l.vend).find(x => x.id === d.mv), m = { ...(metaV(v) || { a: 0, v: 0 }), [d.k]: num(i.value) }; S.edicao.vend[v.id] = m.a || m.v ? m : null; atualizarResumo(S.dados.lojas.find(l => l.vend.includes(v)).id); }
-  if (d.vn) { S.edicao.nomes[d.vn] = i.value; atualizarResumo(S.dados.lojas.find(l => l.vend.some(v => v.id === d.vn)).id); }
+  if (d.ml) { const l = lojaPor(d.ml), partes = Object.fromEntries(ativos(l).map(v => [v.id, parteV(v, l)])), tinha = ativos(l).some(v => metaV(v)); S.edicao.lojas[l.id] = { ...metaL(l), [d.k]: num(i.value) }; if (tinha) aplicarPartes(l, partes); atualizarEditor(l.id); }
+  if (d.pv) { const l = lojaPor(d.loja); aplicarPartes(l, { [d.pv]: +i.value }); atualizarEditor(l.id); }
+  if (d.mv) { const v = S.dados.lojas.flatMap(l => l.vend).find(x => x.id === d.mv), m = { ...(metaV(v) || { a: 0, v: 0 }), [d.k]: num(i.value) }; S.edicao.vend[v.id] = m.a || m.v ? m : null; atualizarEditor(S.dados.lojas.find(l => l.vend.includes(v)).id); }
+  if (d.vn) { S.edicao.nomes[d.vn] = i.value; }
 });
 document.addEventListener("change", async e => {
   const i = e.target; if (!i.dataset || !i.dataset.cfg) return;
@@ -610,7 +665,7 @@ document.addEventListener("click", async e => {
 
 /* ---------- partida ---------- */
 async function iniciar() {
-  S.lojas = await api.lojas(); S.dados = null; S.edicao = null;
+  S.lojas = await api.lojas(); S.dados = null; S.edicao = null; S.editLoja = null;
   desenhar();
 }
 api.ouvir(async () => { if (!S.perfil || S.carregando) return; try { await carregar(); if (!$("modal").hidden || document.activeElement && document.activeElement.matches("input")) return; desenhar(); } catch (e) { } });

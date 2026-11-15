@@ -1,7 +1,7 @@
 /* Acesso aos dados. Duas versões com as mesmas funções:
    - Supabase (de verdade): o banco decide o que cada papel vê e grava (banco/banco.sql);
    - demonstração (?demo): tudo no próprio aparelho, com dados de exemplo e as mesmas regras. */
-import * as MR from "./regras.js?v=202611151221";
+import * as MR from "./regras.js?v=202611151224";
 
 export const hoje = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
@@ -101,7 +101,7 @@ function apiSupabase(cfg) {
 
 /* ===================== DEMONSTRAÇÃO ===================== */
 function apiDemo() {
-  const KEY = "metas-demo-v2";
+  const KEY = "metas-demo-v3";
   let db = (() => { try { const r = lsGet(KEY); if (r) return JSON.parse(r); } catch (e) { } return null; })() || semente();
   const gravar = () => lsSet(KEY, JSON.stringify(db));
   const ouvintes = [];
@@ -114,7 +114,7 @@ function apiDemo() {
     const nomes = ["Loja ON", "Loja 01", "Loja 02", "Loja 03", "Loja 04", "Loja 05", "Loja 06", "Loja 07"];
     const lojas = nomes.map((n, i) => ({ id: "L" + i, nome: n, ativa: true, ordem: i, online: i === 0 }));
     const usuarios = [...lojas.map(l => ({ id: "U" + l.id, usuario: l.nome === "Loja ON" ? "lojaon" : "loja" + l.nome.slice(-2), senha: "1234", nome: l.nome, papel: "loja", loja_id: l.id, ativo: true })),
-      { id: "UD", usuario: "gestao", senha: "gestao", nome: "Gestão da rede", papel: "gestao", loja_id: null, ativo: true },
+      { id: "UD", usuario: "gestao", senha: "gestao", nome: "Diretoria", papel: "gestao", loja_id: null, ativo: true },
       { id: "UA", usuario: "admin", senha: "admin", nome: "Admin", papel: "admin", loja_id: null, ativo: true }];
     const PL = [[["Camila", 1.05, 1], ["Diego", .95, 1.02]], [["Juliana", 1.02, 1.1], ["Rafael", .8, .7]], [["Patrícia", 1.4, .8], ["Marcos", 1, 1]], [["Fernanda", 1.35, 1.4], ["Lucas", .9, .95]],
       [["Aline", 1, 1.08], ["Gustavo", .85, .9], ["Thiago", .25, .3, 1]], [["Bruna", 1.1, 1], ["Felipe", .3, .35]], [["Larissa", 1, 1.05], ["Rodrigo", .95, .9]], [["Vanessa", 1, .95], ["Eduardo", 1.05, 1]]];

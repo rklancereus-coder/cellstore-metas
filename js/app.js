@@ -2,8 +2,8 @@
    Gerente (login da loja): abre no fechamento do dia; painel da loja embaixo.
    Gestão e Admin: visão das lojas, metas em lote, calendário, avisos, relatório.
    Telas por endereço (#/…): o "voltar" do celular anda um passo, como nos outros apps. */
-import * as MR from "./regras.js?v=202611151221";
-import { criarApi, hoje } from "./api.js?v=202611151221";
+import * as MR from "./regras.js?v=202611151224";
+import { criarApi, hoje } from "./api.js?v=202611151224";
 
 const api = criarApi(window.CONFIG);
 const $ = id => document.getElementById(id);
@@ -401,7 +401,7 @@ async function acessos() {
   try {
     const U = (await api.usuarios("listar")).filter(u => u.papel === "gestao");
     corpo.innerHTML = `${U.length ? U.map(u => `<div class="linha-v"><span><b>${esc(u.nome)}</b> <small class="hint">${esc(u.usuario)}${u.ativo ? "" : " · desativado"}</small></span><button class="mini soft" data-a="ativo" data-id="${u.id}" data-ativo="${u.ativo ? 0 : 1}">${u.ativo ? "Desativar" : "Reativar"}</button></div>`).join("") : `<p class="hint" style="margin:0">Nenhum acesso de Gestão ainda.</p>`}
-      <form id="fdona" class="row" style="margin-top:12px"><label class="f"><span>Usuário</span><input id="dusu" autocapitalize="none" placeholder="ex.: gestao" required></label><label class="f"><span>Nome</span><input id="dnome" placeholder="Nome" required></label>
+      <form id="fdona" class="row" style="margin-top:12px"><label class="f"><span>Usuário</span><input id="dusu" autocapitalize="none" placeholder="ex.: gestao" required></label><label class="f"><span>Nome</span><input id="dnome" placeholder="Nome" value="Diretoria" required></label>
       <label class="f"><span>Senha (mín. 6)</span><input id="dsen" type="password" minlength="6" autocomplete="new-password" required></label><span style="align-self:end"><button class="btn primary">Criar acesso</button></span></form>
       <p class="hint" style="margin:6px 0 0">Os gerentes entram com o login da própria loja (o mesmo do Portal).</p>`;
     $("fdona").onsubmit = async ev => {

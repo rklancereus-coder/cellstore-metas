@@ -95,3 +95,9 @@
 .mt .dias2 .s{background:var(--sunk);color:var(--muted);opacity:.85}
 .mt .saldo-nota{font-size:13px;color:var(--muted);font-weight:600;margin:0 0 10px}
 .mt .saldo-nota .link{padding:0 4px;color:var(--accent)}
+
+/* campo que soma */
+.mt .conta{display:block;min-height:16px;font-size:13px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums}
+.mt .dica-soma{margin:0;text-align:center}
+.mt .din .tecla-mais{display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:var(--r-s);background:var(--sunk);color:var(--fg);font-size:20px;font-weight:800;line-height:1}
+@media (pointer:coarse){.mt .lanc .din .tecla-mais{display:grid;place-items:center}.mt .lanc .din input{padding-right:46px}}

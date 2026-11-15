@@ -1,7 +1,7 @@
 /* App de Metas instalável: páginas e arquivos vêm da rede primeiro (sempre a versão nova);
    sem internet, usa a última cópia guardada. versao.json nunca vai para o cache.
    Avisos no celular (push): mostra a notificação e, ao tocar, abre o app na tela certa. */
-const CACHE = "metas-202611151700";
+const CACHE = "metas-202611151703";
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil((async () => {
   for (const k of await caches.keys()) if (k !== CACHE) await caches.delete(k);

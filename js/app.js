@@ -2,14 +2,18 @@
    Gerente (login da loja): abre no fechamento do dia; painel da loja embaixo.
    Gestão e Admin: visão das lojas, metas em lote, calendário, avisos, relatório.
    Telas por endereço (#/…): o "voltar" do celular anda um passo, como nos outros apps. */
-import * as MR from "./regras.js?v=202611151700";
-import { criarApi, hoje } from "./api.js?v=202611151700";
+import * as MR from "./regras.js?v=202611151703";
+import { criarApi, hoje } from "./api.js?v=202611151703";
 
 const api = criarApi(window.CONFIG);
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const R = MR.R, P = MR.P, data = MR.data, nomeMes = MR.nomeMes;
-const num = s => { const t = String(s ?? "").replace(/[^\d,.]/g, ""); const x = parseFloat(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t.replace(/\.(?=\d{3}(\D|$))/g, "")); return isFinite(x) && x > 0 ? Math.round(x * 100) / 100 : 0; };
+// valor de um campo: aceita contas como "150+200+80" ou "1.200-50" (o gerente digita as anotações e o app soma)
+const num1 = t => { t = t.replace(/[^\d,.]/g, ""); if (!t) return 0; const x = parseFloat(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t.replace(/\.(?=\d{3}(\D|$))/g, "")); return isFinite(x) ? x : 0; };
+const num = s => { let tot = 0; String(s ?? "").replace(/\s/g, "").split(/(?=[+-])/).forEach(p => { const v = num1(p); tot += p.startsWith("-") ? -v : v; }); tot = Math.round(tot * 100) / 100; return tot > 0 ? tot : 0; };
+const ehConta = s => /\d\s*[+-]\s*\d/.test(String(s || ""));
+const contaTxt = s => ehConta(s) ? `= ${R(num(s))}` : "";
 const campo = n => n ? Number(n).toLocaleString("pt-BR") : "";
 const r10 = x => Math.round(x / 10) * 10;
 const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }, del(k) { try { localStorage.removeItem(k); } catch (e) { } } };
@@ -230,8 +234,9 @@ function telaLancar() {
     <p class="lead" style="margin:0">${data(dia)} · ${esc(l.nome)}${fila.length > 1 ? ` · <b>dia 1 de ${fila.length} para lançar</b>` : ""}</p>
     ${f && f.status === "aberto" ? `<div class="aviso"><b>A gestão reabriu este dia.</b> Confira os valores e feche de novo.</div>` : ""}
     ${vs.map((v, i) => `<div class="lv"><h3>${esc(v.nome)} <span id="sub-${v.id}">${R(num(r[v.id].a) + num(r[v.id].v))}</span></h3>
-      <div class="row"><label class="f"><span>Assistência</span><div class="din"><input id="in-${i}-a" inputmode="decimal" enterkeyhint="next" placeholder="0" data-lv="${v.id}" data-k="a" value="${esc(r[v.id].a || "")}"></div></label>
-      <label class="f"><span>Vendas</span><div class="din"><input id="in-${i}-v" inputmode="decimal" enterkeyhint="${i === vs.length - 1 ? "done" : "next"}" placeholder="0" data-lv="${v.id}" data-k="v" value="${esc(r[v.id].v || "")}"></div></label></div></div>`).join("")}
+      <div class="row"><label class="f"><span>Assistência</span><div class="din"><input id="in-${i}-a" inputmode="decimal" enterkeyhint="next" placeholder="0" autocomplete="off" data-lv="${v.id}" data-k="a" value="${esc(r[v.id].a || "")}"><button type="button" class="tecla-mais" data-a="tecla-mais" data-alvo="in-${i}-a" tabindex="-1" aria-label="Somar outro valor">+</button></div><small class="conta" id="cc-${v.id}-a">${contaTxt(r[v.id].a)}</small></label>
+      <label class="f"><span>Vendas</span><div class="din"><input id="in-${i}-v" inputmode="decimal" enterkeyhint="${i === vs.length - 1 ? "done" : "next"}" placeholder="0" autocomplete="off" data-lv="${v.id}" data-k="v" value="${esc(r[v.id].v || "")}"><button type="button" class="tecla-mais" data-a="tecla-mais" data-alvo="in-${i}-v" tabindex="-1" aria-label="Somar outro valor">+</button></div><small class="conta" id="cc-${v.id}-v">${contaTxt(r[v.id].v)}</small></label></div></div>`).join("")}
+    <p class="hint dica-soma">Dica: digite as anotações com <b>+</b> (ex.: <b>150+200+80</b>) que o app soma. Para tirar um valor, use <b>−</b>.</p>
     <div class="tot-dia"><span>Total do dia</span><span id="totdia">${R(tot)}</span></div>
     <button class="btn primary" data-a="fechar">Fechar o dia</button>
     <p class="hint" style="margin:0;text-align:center">O que você digita fica guardado neste aparelho até fechar.</p>
@@ -246,7 +251,7 @@ function confirmarFechar() {
     if (outros.length >= 3 && med && val > m * med) estranhos.push(`${esc(v.nome)}: ${R(val)} em ${nome} é ${Math.round(val / med)}× a média (${R(med)}).`);
   }));
   modal(`<h2>Fechar ${data(dia)}?</h2>
-    <div class="painel" style="gap:6px">${vals.map(x => `<div class="linha-v"><span>${esc(x.v.nome)}</span><b>${R(x.a)} + ${R(x.vv)}</b></div>`).join("")}
+    <div class="painel" style="gap:6px">${vals.map(x => `<div class="linha-v"><span>${esc(x.v.nome)}${[r[x.v.id].a, r[x.v.id].v].some(ehConta) ? `<small class="hint" style="display:block">${[ehConta(r[x.v.id].a) ? "Assist. " + esc(r[x.v.id].a) : "", ehConta(r[x.v.id].v) ? "Vendas " + esc(r[x.v.id].v) : ""].filter(Boolean).join(" · ")}</small>` : ""}</span><b>${R(x.a)} + ${R(x.vv)}</b></div>`).join("")}
     <div class="linha-v tot"><span>Total</span><span>${R(tot)}</span></div></div>
     ${!tot ? `<div class="aviso"><b>Tudo zerado.</b> A loja não vendeu nada neste dia?</div>` : ""}
     ${estranhos.length ? `<div class="aviso"><b>Confira esses valores:</b><br>${estranhos.join("<br>")}</div>` : ""}
@@ -511,6 +516,7 @@ document.addEventListener("click", async e => {
     if (a === "dia") return diaRede(lojaPor(rota().arg), b.dataset.dia);
     if (a === "saldo") return saldoAbertura(lojaPor(b.dataset.loja));
     if (a === "fechar") return confirmarFechar();
+    if (a === "tecla-mais") { const i = $(b.dataset.alvo); if (i.value && !/[+-]$/.test(i.value)) i.value += "+"; i.focus(); i.dispatchEvent(new Event("input", { bubbles: true })); return; }
     if (a === "relatorio") return relatorio();
     if (a === "ativar") return ativarAvisos();
     if (a === "copiar") { const n = await api.copiarMetas(MR.mesMais(S.mes, -1), S.mes); toast(n ? `${n} metas copiadas` : "Nada para copiar (ou já estava tudo cadastrado)"); S.edicao = null; await carregar(); return desenhar(); }
@@ -541,6 +547,7 @@ document.addEventListener("input", e => {
     const { l, dia, r } = S.lanc, x = (r[d.lv] ||= {}); x[d.k] = i.value;
     ls.set(chaveR(l.id, dia), JSON.stringify(r));
     $("sub-" + d.lv).textContent = R(num(x.a) + num(x.v));
+    const cc = $(`cc-${d.lv}-${d.k}`); if (cc) cc.textContent = contaTxt(i.value);
     $("totdia").textContent = R(Object.values(r).reduce((s, y) => s + num(y.a) + num(y.v), 0));
   }
   if (d.ml) { const l = lojaPor(d.ml); S.edicao.lojas[l.id] = { ...metaL(l), [d.k]: num(i.value) }; atualizarResumo(l.id); }

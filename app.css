@@ -283,3 +283,63 @@ header.top.topo{background:var(--ink);border:0;color:#fff}
 .mt section.cartao .cal button{aspect-ratio:auto;padding:10px 0}
 @media (max-width:860px){.mt .linha{grid-template-columns:44px minmax(0,1fr) auto;row-gap:10px}.mt .linha .dv,.mt .linha .vs{grid-column:2/-1}.mt .linha>.bt{grid-row:1;grid-column:3}.mt .resumo2{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.mt .vd{grid-template-columns:30px minmax(0,1fr) 96px 28px}.mt .vd input[type=range]{grid-column:1/-1;grid-row:2}.mt .campos2{grid-template-columns:minmax(0,1fr)}.mt .acoes2 .novo{width:100%}.mt .acoes2 .novo input{flex:1;width:auto}.mt .acoes2 .esp{display:none}}
+
+/* ---------- v2 · etapa 3: loja, gerente, lançamento e avisos ---------- */
+.mt .tit-loja{display:inline-flex;align-items:center;gap:12px}
+.mt .tit-loja .selo{width:40px;height:40px;font-size:14px}
+.mt .aviso{background:var(--warn-soft);color:#5d3500;border-radius:12px;padding:12px 14px;font-size:14px}
+.mt .aviso b{color:var(--warn)}
+.mt .bt.cinza{color:var(--muted)}
+.mt .saldo-nota{font-size:13px;color:var(--muted);font-weight:600;margin:0 0 12px}
+.mt .vends2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.mt .vcard{display:grid;gap:12px;scroll-margin-top:130px}
+.mt .vcard .cima{display:flex;align-items:center;gap:12px;min-width:0}
+.mt .vcard h3{font-size:16px;margin-right:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mt .vcard .pct{font-size:24px;font-weight:800}
+.mt .vcard .mini{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.mt .vcard .pe{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.mt .vcard .pe b{color:var(--fg)}
+.mt .cal2{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.mt .cal2 .ds{font-size:11px;font-weight:700;color:var(--faint);text-align:center;text-transform:uppercase;letter-spacing:.05em}
+.mt .cal2 .d{position:relative;display:grid;place-items:center;min-height:44px;border-radius:10px;background:var(--bg);font:700 14px var(--display);color:var(--faint);border:0}
+.mt .cal2 .d em{position:absolute;top:3px;right:6px;font-style:normal;font-size:10px}
+.mt .cal2 .f{background:var(--ok-soft);color:var(--ok)}
+.mt .cal2 .re{background:var(--warn-soft);color:var(--warn)}
+.mt .cal2 .p{background:var(--urg-soft);color:var(--urg);box-shadow:inset 0 0 0 2px var(--urg)}
+.mt .cal2 .h{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
+.mt .cal2 .s{background:var(--sunk);color:var(--muted)}
+.mt .cal2 .x{background:none;color:var(--line)}
+.mt .cal2 button.d{cursor:pointer}
+.mt .cal2 button.d:hover{filter:brightness(.96)}
+.mt .leg2{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;font-weight:600;color:var(--muted);margin-top:12px}
+.mt .avisos2{display:grid}
+.mt .av2{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:start;padding:12px 0;border-top:1px solid var(--line)}
+.mt .avisos2>.av2:first-child{border-top:0;padding-top:4px}
+.mt .av2 .ic{width:10px;height:10px;border-radius:50%;margin-top:6px}
+.mt .av2.r .ic{background:var(--urg)} .mt .av2.a .ic{background:var(--warn)} .mt .av2.g .ic{background:var(--ok)}
+.mt .av2 b{display:block;font-size:14px}
+.mt .av2 p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.mt .av2 .acoes{display:flex;gap:2px;align-items:center}
+.mt .av2 .acoes .bt{padding:6px 10px}
+.mt .grp2.r{color:var(--urg)} .mt .grp2.a{color:var(--warn)} .mt .grp2.g{color:var(--ok)}
+.mt .status2{display:grid;gap:8px;margin-bottom:16px}
+.mt .bigbtn2{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--accent);color:#fff;border-radius:18px;padding:18px 20px;box-shadow:0 12px 26px -14px rgba(216,27,122,.7);transition:transform .15s,background .15s}
+.mt .bigbtn2:hover{background:var(--accent-hi);transform:translateY(-1px)}
+.mt .bigbtn2 svg{width:28px;height:28px;flex:none;background:rgba(255,255,255,.18);border-radius:50%;padding:4px}
+.mt .bigbtn2 span{display:grid;margin-right:auto}
+.mt .bigbtn2 b{font:800 19px var(--display)}
+.mt .bigbtn2 small{opacity:.85;font-size:13px}
+.mt .bigbtn2 i{font-style:normal;font-size:28px;opacity:.8}
+.mt .status2 p{text-align:center}
+.mt .status2.ok{display:flex;align-items:center;gap:12px;background:var(--ok-soft);color:var(--ok);border-radius:16px;padding:14px 16px}
+.mt .status2.ok b{display:block;color:var(--fg);font-size:16px;font-family:var(--display)}
+.mt .status2.ok span{color:var(--muted);font-size:13px;font-weight:600}
+.mt .lanc .lv{background:var(--surface);border:0;border-radius:16px;box-shadow:0 1px 0 var(--line)}
+.mt .fecha2{display:grid;gap:12px;background:var(--surface);border-radius:18px;padding:16px;box-shadow:0 1px 0 var(--line),0 10px 26px -20px rgba(40,10,60,.35)}
+.mt .fecha2 .tot-dia{font-family:var(--display);padding:0 2px}
+.mt .fecha2 .tot-dia #totdia{font-size:24px;font-weight:800}
+@media (min-width:720px){.mt .lanc .tab-lanc{border:0;box-shadow:0 1px 0 var(--line),0 10px 26px -20px rgba(40,10,60,.35);border-radius:18px}.mt .lanc .tab-lanc .lv{box-shadow:none;border-radius:0}}
+@media (max-width:720px){.mt .vends2{grid-template-columns:minmax(0,1fr)}.mt .cal2{gap:4px}.mt .cal2 .d{min-height:40px;font-size:13px}}
+/* .num do Portal deixa cinza: aqui o número herda a cor (status continua colorido) */
+.mt .num:not(.t-g):not(.t-a):not(.t-r):not(.t-p){color:inherit}
+@media (max-width:720px){.mt .kpis3>div:last-child:nth-child(odd){grid-column:1/-1}}

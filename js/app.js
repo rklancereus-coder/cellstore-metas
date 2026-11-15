@@ -2,8 +2,8 @@
    Gerente (login da loja): abre no fechamento do dia; painel da loja embaixo.
    Gestão e Admin: visão das lojas, metas em lote, calendário, avisos, relatório.
    Telas por endereço (#/…): o "voltar" do celular anda um passo, como nos outros apps. */
-import * as MR from "./regras.js?v=202611151825";
-import { criarApi, hoje } from "./api.js?v=202611151825";
+import * as MR from "./regras.js?v=202611151830";
+import { criarApi, hoje } from "./api.js?v=202611151830";
 
 const api = criarApi(window.CONFIG);
 const $ = id => document.getElementById(id);
@@ -71,6 +71,8 @@ const seloTxt = nome => { const p = String(nome).trim().split(/\s+/).pop(); retu
 const selo = (nome, forte) => `<span class="selo${forte ? " forte" : ""}" aria-hidden="true">${esc(seloTxt(nome))}</span>`;
 const AVAS = [["#ece8ff", "#4a2fc9"], ["#ddf4ea", "#0b6b48"], ["#fde6f1", "#9c0f56"], ["#fdeed6", "#7a4300"], ["#e3f0fb", "#11558f"]];
 const ava = (nome, i) => `<span class="ava" style="background:${AVAS[i % 5][0]};color:${AVAS[i % 5][1]}" title="${esc(nome)}">${esc(String(nome).trim().slice(0, 2).toUpperCase())}</span>`;
+const barra2 = (x, cor, fina) => `<span class="barra2${fina ? " fina" : ""}" role="img" aria-label="${P(x.pct)}; deveria estar em ${P(x.ideal)}"><i style="width:${Math.min(100, x.pct * 100)}%;background:${cor}"></i>${x.meta ? `<b style="left:${Math.min(100, x.ideal * 100)}%"></b>` : ""}</span>`;
+const tituloLoja = l => `<span class="tit-loja">${selo(l.nome, true)}<span>${esc(l.nome)}</span></span>`;
 const pill = (c, txt) => `<span class="pill ${c || "p"}">${txt || COR[c] || "Sem meta"}</span>`;
 const anel = (c, t = 140, esp = 13, txt = "da meta") => `<div class="anel" role="img" aria-label="${P(c.pct)} da meta; deveria estar em ${P(c.ideal)}" style="--p:${Math.min(100, c.pct * 100)};--i:${Math.min(100, c.ideal * 100)};--c:${corVar(c.cor)};--t:${t}px;--esp:${esp}px"><span><span><b>${P(c.pct)}</b><small>${txt}</small></span></span></div>`;
 
@@ -122,37 +124,41 @@ function cabeca(titulo, { voltar: v = false, mes = true, sub = "" } = {}) {
 }
 
 /* ---------- peças ---------- */
-function cardVend(v, l) {
+function cardVend(v, l, i = 0) {
   const cv = MR.contaVend(S.dados, v, l), t = cv.tot;
-  if (!v.meta) return `<div class="vend"><div class="cab"><h3>${esc(v.nome)}</h3><span class="cor p">Sem meta</span></div><div class="pe"><span>Vendeu <b>${R(t.real)}</b></span><span>Assist. ${R(cv.a.real)} · Vendas ${R(cv.v.real)}</span></div></div>`;
-  const cat = (nome, c) => `<div class="cat"><div class="l"><span style="color:var(--fg)">${nome}</span><span class="txt-${c.cor}">${P(c.pct)}</span></div>${barra(c, "fina")}</div>`;
-  return `<div class="vend ${t.cor}" id="v-${v.id}"><div class="cab"><h3>${esc(v.nome)}</h3>${chip(t.cor)}<span class="pct txt-${t.cor}">${P(t.pct)}</span></div>
-    ${barra(t)}<div class="mini2">${cat("Assistência", cv.a)}${cat("Vendas", cv.v)}</div>
-    <div class="pe"><span>Vendeu <b>${R(t.real)}</b> de ${R(t.meta)}</span><span>Precisa <b>${R(t.diaria)}/dia</b></span><span>Previsão <b class="txt-${corPrev(t.projPct)}">${t.n ? P(t.projPct) : "—"}</b></span></div></div>`;
+  if (!v.meta) return `<div class="cartao vcard" id="v-${v.id}"><div class="cima">${ava(v.nome, i)}<h3>${esc(v.nome)}</h3>${pill("p", "Sem meta")}</div><div class="pe"><span>Vendeu <b>${R(t.real)}</b></span><span>Assist. ${R(cv.a.real)} · Vendas ${R(cv.v.real)}</span></div></div>`;
+  return `<div class="cartao vcard" id="v-${v.id}"><div class="cima">${ava(v.nome, i)}<h3>${esc(v.nome)}</h3>${pill(t.cor)}<span class="pct num t-${t.cor}">${P(t.pct)}</span></div>
+    ${barra2(t, corVar(t.cor))}
+    <div class="mini"><div class="cat2"><div class="l">Assistência <span>${P(cv.a.pct)}</span></div>${barra2(cv.a, "var(--assist)", 1)}</div><div class="cat2"><div class="l">Vendas <span>${P(cv.v.pct)}</span></div>${barra2(cv.v, "var(--vendas)", 1)}</div></div>
+    <div class="pe"><span>Vendeu <b>${R(t.real)}</b> de ${R(t.meta)}</span><span>Precisa <b>${R(t.diaria)}/dia</b></span><span>Previsão <b class="t-${corPrev(t.projPct)}">${t.n ? P(t.projPct) : "—"}</b></span></div></div>`;
 }
+// calendário do mês em semanas (segunda a domingo), com símbolo além da cor
 function diasLoja(l, rede) {
-  const hj = S.dados.hj, SIM = { f: "✓", re: "↺", p: "!", h: "•", s: "Σ" };
-  const cel = l.diasV.map(dia => {
+  const D = S.dados, hj = D.hj, SIM = { f: "✓", re: "↺", p: "!", h: "•", s: "Σ" }, venda = new Set(l.diasV);
+  const pad = (MR.dow(D.dias[0]) + 6) % 7;
+  const cel = D.dias.map(dia => {
+    const n = +dia.slice(8);
+    if (!venda.has(dia)) return `<div class="d x" title="${data(dia)} · loja fechada">${n}</div>`;
     const f = l.fech.get(dia), corr = f && (f.reaberto_em || l.corr.some(c => c.fechamento_id === f.id));
     let cls = "", tit = data(dia);
     if (l.ate && dia <= l.ate) { cls = "s"; tit += " · no saldo de abertura"; }
     else if (f && f.status === "fechado") { cls = corr ? "re" : "f"; tit += corr ? " · corrigido" : " · fechado"; }
     else if (dia < hj) { cls = "p"; tit += f ? " · reaberto, falta lançar de novo" : " · fechamento pendente"; }
     else if (dia === hj) { cls = "h"; tit += " · hoje"; }
-    const n = +dia.slice(8), dentro = `<span>${n}</span>${cls ? `<em>${SIM[cls]}</em>` : ""}`;
-    return rede && dia <= hj && cls !== "s" ? `<button class="${cls}" data-a="dia" data-dia="${dia}" title="${tit} · toque para ver ou corrigir">${dentro}</button>` : `<div class="${cls}" title="${tit}">${dentro}</div>`;
+    const dentro = `${n}${cls ? `<em>${SIM[cls]}</em>` : ""}`;
+    return rede && dia <= hj && cls !== "s" ? `<button class="d ${cls}" data-a="dia" data-dia="${dia}" title="${tit} · toque para ver ou corrigir">${dentro}</button>` : `<div class="d ${cls}" title="${tit}">${dentro}</div>`;
   }).join("");
-  return `<div class="dias dias2">${cel || `<span class="hint">Nenhum dia de venda neste mês.</span>`}</div>
-  <div class="leg-dias"><span style="--c:var(--g-soft)">✓ Fechado</span><span style="--c:var(--a-soft)">↺ Corrigido</span><span style="--c:var(--r-soft)">! Pendente</span><span style="--c:var(--accent-soft)">• Hoje</span>${l.ate ? `<span style="--c:var(--sunk)">Σ Saldo de abertura</span>` : ""}</div>
-  <p class="hint" style="margin:0">${rede ? "Toque num dia para lançar, corrigir ou reabrir para o gerente." : "Dia fechado não muda mais. Se precisar corrigir, peça à gestão para reabrir."}</p>`;
+  return `<div class="cal2">${["seg", "ter", "qua", "qui", "sex", "sáb", "dom"].map(x => `<span class="ds">${x}</span>`).join("")}${"<span></span>".repeat(pad)}${cel}</div>
+  <div class="leg2"><span class="t-g">✓ Fechado</span><span class="t-a">↺ Corrigido</span><span class="t-r">! Pendente</span><span style="color:var(--accent)">• Hoje</span>${l.ate ? `<span>Σ Saldo de abertura</span>` : ""}<span style="color:var(--faint)">Loja fechada</span></div>
+  <p class="hint" style="margin:8px 0 0">${rede ? "Toque num dia para lançar, corrigir ou reabrir para o gerente." : "Dia fechado não muda mais. Se precisar corrigir, peça à Diretoria para reabrir."}</p>`;
 }
 function listaAvisos(L, { max = 0, agrupar = false } = {}) {
   if (!L.length) return `<p class="vazio">Nenhum aviso agora.</p>`;
   S.listaAv = L;
-  const item = (x, i) => `<div class="av ${x.nivel}"><span class="ic"></span><div><b>${esc(x.titulo)}</b><p>${esc(x.texto)}</p></div>
-    <div class="acoes">${x.alvo && (x.alvo.loja || (x.alvo.aba && ehRede())) ? `<button class="mini soft" data-a="av-ir" data-i="${i}">Ver</button>` : ""}<button class="mini link" data-a="av-visto" data-i="${i}">Visto</button></div></div>`;
-  if (!agrupar) return `<div class="avisos">${(max ? L.slice(0, max) : L).map(item).join("")}</div>${max && L.length > max ? `<button class="link" data-a="ir" data-h="#/avisos">Ver todos os ${L.length} avisos</button>` : ""}`;
-  return [["r", "Urgentes"], ["a", "Atenção"], ["g", "Boas notícias"]].map(([n, t]) => { const g = L.map((x, i) => [x, i]).filter(([x]) => x.nivel === n); return g.length ? `<h3 class="grp ${n}">${t} <small>${g.length}</small></h3><div class="avisos">${g.map(([x, i]) => item(x, i)).join("")}</div>` : ""; }).join("");
+  const item = (x, i) => `<div class="av2 ${x.nivel}"><span class="ic" aria-hidden="true"></span><div class="tx"><b>${esc(x.titulo)}</b><p>${esc(x.texto)}</p></div>
+    <div class="acoes">${x.alvo && (x.alvo.loja || (x.alvo.aba && ehRede())) ? `<button class="bt fant" data-a="av-ir" data-i="${i}">Ver</button>` : ""}<button class="bt fant cinza" data-a="av-visto" data-i="${i}">Visto</button></div></div>`;
+  if (!agrupar) return `<div class="avisos2">${(max ? L.slice(0, max) : L).map(item).join("")}</div>${max && L.length > max ? `<button class="bt fant" data-a="ir" data-h="#/avisos" style="margin-top:6px">Ver todos os ${L.length} avisos</button>` : ""}`;
+  return [["r", "Urgentes"], ["a", "Atenção"], ["g", "Boas notícias"]].map(([n, t]) => { const g = L.map((x, i) => [x, i]).filter(([x]) => x.nivel === n); return g.length ? `<section class="sec cartao"><div class="cab2"><h2 class="grp2 ${n}">${t}</h2><span class="rotulo">${g.length}</span></div><div class="avisos2">${g.map(([x, i]) => item(x, i)).join("")}</div></section>` : ""; }).join("");
 }
 
 /* ---------- avisos no celular ---------- */
@@ -183,27 +189,29 @@ async function ativarAvisos() {
 /* ---------- painel de uma loja ---------- */
 function painelLoja(l, rede) {
   const c = MR.contaLoja(S.dados, l), t = c.tot, sem = !l.meta;
-  const cat = (nome, x) => `<div class="cat"><div class="l"><span style="color:var(--fg)">${nome} <span>${R(x.real)} de ${R(x.meta)}</span></span><span class="txt-${x.cor}" style="font-weight:800">${P(x.pct)}</span></div>${barra(x)}</div>`;
+  const cat = (nome, x, cor) => `<div class="cat2"><div class="l">${nome} <span>${R(x.real)} de ${R(x.meta)} · ${P(x.pct)}</span></div>${barra2(x, cor)}</div>`;
   const avL = avisos().filter(x => x.alvo && x.alvo.loja === l.id);
   const comecou = l.diasApp.length || l.ate, meio = S.mes === mesAtual() && l.vend.some(v => v.ativo) && l.pend.length >= 3 && !comecou;
   const saldoBox = rede && S.mes === mesAtual() ? (l.ate
       ? `<div class="saldo-nota">Σ Inclui o saldo de abertura até ${data(l.ate)}. <button class="link" data-a="saldo" data-loja="${l.id}">Ver ou mudar</button></div>`
-      : meio ? `<div class="aviso"><b>Começando no meio do mês?</b> Lance o saldo de abertura: quanto cada vendedor já vendeu até ontem. Assim a loja não aparece zerada. <button class="mini primary" data-a="saldo" data-loja="${l.id}" style="margin-top:8px;display:block">Lançar saldo de abertura</button></div>` : "")
+      : meio ? `<div class="aviso" style="margin-bottom:14px"><b>Começando no meio do mês?</b> Lance o saldo de abertura: quanto cada vendedor já vendeu até ontem. Assim a loja não aparece zerada. <button class="mini primary" data-a="saldo" data-loja="${l.id}" style="margin-top:8px;display:block">Lançar saldo de abertura</button></div>` : "")
     : (l.ate ? `<div class="saldo-nota">Σ Inclui o saldo de abertura até ${data(l.ate)}.</div>` : "");
-  return `${saldoBox}<div class="mhero">
-    <div class="topo"><span>${esc(l.nome)} · ${l.n} de ${l.N} dias fechados</span>${l.pend.length ? `<span class="cor r">Fechamento pendente${l.pend.length > 1 ? ` (${l.pend.length} dias)` : ""}</span>` : chip(t.cor)}</div>
-    <div class="valor"><b>${R(t.real)}</b><span>${sem ? "sem meta cadastrada" : `de ${R(t.meta)}`}</span>${sem ? "" : `<em class="txt-${t.cor}">${P(t.pct)}</em>`}</div>
-    ${sem ? "" : `${barra(t)}<div class="legenda"><span>▏Onde deveria estar hoje: ${P(t.ideal)}</span><span>Falta ${R(t.falta)}</span></div>
-    <div class="nums">
-      <div><small>Precisa vender por dia</small><b>${R(t.diaria)}</b><span>nos ${t.rest} dias que faltam</span></div>
-      <div><small>Se continuar assim</small><b class="txt-${corPrev(t.projPct)}">${t.n ? R(t.proj) : "—"}</b><span>${t.n ? `${P(t.projPct)} da meta no fim do mês` : "aparece no 1º dia fechado"}</span></div>
-      <div><small>Dias fechados</small><b>${l.n} de ${l.N}</b><span>dias de venda</span></div>
-    </div>`}
-  </div>
-  ${avL.length ? `<section class="sec"><h2>Avisos da loja <small>${avL.length}</small></h2>${listaAvisos(avL, { max: 3 })}</section>` : ""}
-  ${sem ? "" : `<section class="sec"><h2>Por categoria</h2><div class="painel cats">${cat("Assistência", c.a)}${cat("Vendas", c.v)}</div></section>`}
-  <section class="sec"><h2>Vendedores</h2>${l.vend.length ? `<div class="vends">${l.vend.map(v => cardVend(v, l)).join("")}</div>` : `<p class="vazio">${rede ? `Nenhum vendedor cadastrado. <button class="link" data-a="ir" data-h="#/metas" style="padding:0;color:var(--accent)">Cadastrar em Metas</button>` : "A gestão ainda não cadastrou os vendedores desta loja."}</p>`}</section>
-  <section class="sec"><h2>Fechamentos do mês</h2><div class="painel">${diasLoja(l, rede)}</div></section>`;
+  return `${saldoBox}<section class="cartao hero2" aria-label="Resumo da loja">
+    ${anel(t, 140, 13, sem ? "sem meta" : "da meta")}
+    <div style="min-width:0">
+      ${l.pend.length ? pill("r", `Fechamento pendente${l.pend.length > 1 ? ` · ${l.pend.length} dias` : ""}`) : sem ? pill("p", "Sem meta cadastrada") : pill(t.cor, `${COR[t.cor]} · deveria estar em ${P(t.ideal)}`)}
+      <div class="valor2"><b class="num">${R(t.real)}</b> <span>${sem ? "vendido no mês" : `de ${R(t.meta)}`}</span></div>
+      ${sem ? "" : `<div class="kpis3">
+        <div><b class="num">${R(t.diaria)}</b><span>precisa vender por dia</span></div>
+        <div><b class="num t-${corPrev(t.projPct)}">${t.n ? R(t.proj) : "—"}</b><span>${t.n ? `se continuar assim (${P(t.projPct)})` : "previsão no 1º dia fechado"}</span></div>
+        <div><b class="num">${R(t.falta)}</b><span>falta em ${t.rest} dias</span></div>
+      </div>
+      <div class="cats2">${cat("Assistência", c.a, "var(--assist)")}${cat("Vendas", c.v, "var(--vendas)")}</div>`}
+    </div>
+  </section>
+  ${avL.length ? `<section class="sec cartao"><div class="cab2"><h2>Avisos da loja</h2><span class="rotulo">${avL.length}</span></div>${listaAvisos(avL, { max: 3 })}</section>` : ""}
+  <section class="sec"><div class="cab2"><h2>Vendedores</h2></div>${l.vend.length ? `<div class="vends2">${l.vend.map((v, i) => cardVend(v, l, i)).join("")}</div>` : `<p class="vazio">${rede ? `Nenhum vendedor cadastrado. <button class="bt fant" data-a="ir" data-h="#/metas">Cadastrar em Metas</button>` : "A Diretoria ainda não cadastrou os vendedores desta loja."}</p>`}</section>
+  <section class="sec cartao"><div class="cab2"><h2>Fechamentos de ${nomeMes(S.mes).split(" ")[0].toLowerCase()}</h2><span class="rotulo">${l.n} de ${l.N} fechados</span></div>${diasLoja(l, rede)}</section>`;
 }
 
 /* ---------- gerente ---------- */
@@ -216,11 +224,12 @@ function telaGerente() {
     const fila = filaLancar(l), ativos = l.vend.some(v => v.ativo), ult = l.fechados[l.n - 1];
     if (!ativos) topo = `<div class="aviso"><b>Ainda sem vendedores.</b> A gestão precisa cadastrar os vendedores desta loja para o fechamento funcionar.</div>`;
     else if (l.pend.length >= 3 && !l.diasApp.length && !l.ate) topo = `<div class="aviso"><b>A loja está começando a usar agora?</b> Peça à Diretoria para lançar o saldo de abertura (o que já foi vendido no mês). Depois disso, é só fechar o dia de hoje.</div>`;
-    else if (fila.length) topo = `<div class="status"><button class="btn primary bigbtn" data-a="ir" data-h="#/lancar">${ICON.ok} ${fila[0] === S.dados.hj ? "Fechar o dia de hoje" : `Lançar ${data(fila[0])}`}</button>
+    else if (fila.length) topo = `<div class="status2"><button class="bigbtn2" data-a="ir" data-h="#/lancar">${ICON.ok}<span><b>${fila[0] === S.dados.hj ? "Fechar o dia de hoje" : `Lançar ${data(fila[0])}`}</b><small>${fila[0] === S.dados.hj ? data(fila[0]) : "dia atrasado"}</small></span><i aria-hidden="true">›</i></button>
       <p class="${l.pend.length ? "txt-r" : "hint"}" style="margin:0;font-weight:700;text-align:center">${l.pend.length ? `${l.pend.length} dia${l.pend.length > 1 ? "s" : ""} atrasado${l.pend.length > 1 ? "s" : ""} · comece pelo mais antigo` : "Leva 1 minuto: Assistência e Vendas de cada vendedor."}</p></div>`;
-    else topo = `<div class="status ok">${ICON.ok}<div><b>Tudo em dia</b><span>${ult ? `Último fechamento: ${data(ult)} · ${R(MR.totDia(l, ult))}` : "Nenhum dia para lançar agora."}</span></div></div>`;
+    else topo = `<div class="status2 ok">${ICON.ok}<div><b>Tudo em dia</b><span>${ult ? `Último fechamento: ${data(ult)} · ${R(MR.totDia(l, ult))}` : "Nenhum dia para lançar agora."}</span></div></div>`;
   }
-  return `${cabeca(esc(l.nome))}${faixaAvisos()}${topo}${painelLoja(l, false)}`;
+  const nomes = l.vend.filter(v => v.ativo).map(v => v.nome);
+  return `${cabeca(tituloLoja(l), { sub: `${nomes.length ? esc(nomes.slice(0, 3).join(", ")) + (nomes.length > 3 ? "…" : "") + " · " : ""}${l.n} de ${l.N} dias fechados` })}${faixaAvisos()}${topo}${painelLoja(l, false)}`;
 }
 const chaveR = (l, d) => `metas-rasc-${l}-${d}`;
 function rascunho(l, dia) {
@@ -236,9 +245,8 @@ function telaLancar() {
   const r = rascunho(l, dia), f = l.fech.get(dia), vs = l.vend.filter(v => r[v.id]);
   const tot = vs.reduce((s, v) => s + num(r[v.id].a) + num(r[v.id].v), 0), atras = dia < S.dados.hj;
   S.lanc = { l, dia, r };
-  return `${cabeca(atras ? "Fechamento atrasado" : "Fechamento de hoje", { voltar: true, mes: false })}
+  return `${cabeca(atras ? "Fechamento atrasado" : "Fechamento de hoje", { voltar: true, mes: false, sub: `${data(dia)} · ${esc(l.nome)}${fila.length > 1 ? ` · dia 1 de ${fila.length} para lançar` : ""}` })}
   <div class="lanc">
-    <p class="lead" style="margin:0">${data(dia)} · ${esc(l.nome)}${fila.length > 1 ? ` · <b>dia 1 de ${fila.length} para lançar</b>` : ""}</p>
     ${f && f.status === "aberto" ? `<div class="aviso"><b>A gestão reabriu este dia.</b> Confira os valores e feche de novo.</div>` : ""}
     <div class="tab-lanc"><div class="tl-cab" aria-hidden="true"><span>Vendedor</span><span>Assistência</span><span>Vendas</span></div>
     ${vs.map((v, i) => `<div class="lv"><h3>${esc(v.nome)} <span id="sub-${v.id}">${R(num(r[v.id].a) + num(r[v.id].v))}</span></h3>
@@ -246,8 +254,8 @@ function telaLancar() {
       <label class="f"><span>Vendas</span><div class="din"><input id="in-${i}-v" inputmode="decimal" enterkeyhint="${i === vs.length - 1 ? "done" : "next"}" placeholder="0" autocomplete="off" data-lv="${v.id}" data-k="v" value="${esc(r[v.id].v || "")}"><button type="button" class="tecla-mais" data-a="tecla-mais" data-alvo="in-${i}-v" tabindex="-1" aria-label="Somar outro valor">+</button></div><small class="conta" id="cc-${v.id}-v">${contaTxt(r[v.id].v)}</small></label></div></div>`).join("")}
     </div>
     <p class="hint dica-soma">Dica: digite as anotações com <b>+</b> (ex.: <b>150+200+80</b>) que o app soma. Para tirar um valor, use <b>−</b>.<span class="so-teclado"><br><b>Tab</b> ou <b>Enter</b>: próximo campo · <b>Ctrl+Enter</b>: fechar o dia</span></p>
-    <div class="tot-dia"><span>Total do dia</span><span id="totdia">${R(tot)}</span></div>
-    <button class="btn primary" data-a="fechar">Fechar o dia</button>
+    <div class="fecha2"><div class="tot-dia"><span>Total do dia</span><span id="totdia" class="num">${R(tot)}</span></div>
+    <button class="btn primary" data-a="fechar">Fechar o dia</button></div>
     <p class="hint" style="margin:0;text-align:center">O que você digita fica guardado neste aparelho até fechar.</p>
   </div>`;
 }
@@ -525,11 +533,11 @@ async function acessos() {
 /* ---------- avisos ---------- */
 function telaAvisos() {
   const L = avisos();
-  return `${cabeca("Avisos", { voltar: true })}
-  <p class="hint" style="margin:0 0 10px">Do mais importante para o menos. ${ehRede() ? "O gerente vê os avisos da loja dele." : "Avisos da sua loja."} "Visto" tira da lista; volta só se piorar ou depois de ${S.dados.cfg.repetir_dias} dias.</p>
-  ${L.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><button class="mini soft" data-a="todos-vistos">Marcar todos como vistos</button></div>` : ""}
+  return `${cabeca("Avisos", { voltar: true, sub: "Do mais importante para o menos" })}
+  <p class="hint" style="margin:0 0 10px"> ${ehRede() ? "O gerente vê os avisos da loja dele." : "Avisos da sua loja."} "Visto" tira da lista; volta só se piorar ou depois de ${S.dados.cfg.repetir_dias} dias.</p>
+  ${L.length ? `<div class="acoes2" style="margin-bottom:4px"><button class="bt" data-a="todos-vistos">Marcar todos como vistos</button></div>` : ""}
   ${listaAvisos(L, { agrupar: true })}
-  ${S.dados.vistos.size ? `<button class="link" data-a="desver" style="margin-top:10px">Mostrar de novo os ${S.dados.vistos.size} vistos</button>` : ""}`;
+  ${S.dados.vistos.size ? `<button class="bt fant" data-a="desver" style="margin-top:10px">Mostrar de novo os ${S.dados.vistos.size} vistos</button>` : ""}`;
 }
 
 /* ---------- desenho geral ---------- */
@@ -550,7 +558,7 @@ function desenhar() {
   if (nome === "relatorio") { if (ehRede()) { S.mes = MR.mesMais(mesAtual(), -1); S.abrirRel = true; } history.replaceState(null, "", "#/"); return desenhar(); }
   let html;
   if (nome === "avisos") html = telaAvisos();
-  else if (ehRede()) html = nome === "metas" ? telaMetas() : nome === "loja" && lojaPor(arg) ? `${cabeca(esc(lojaPor(arg).nome), { voltar: true })}${painelLoja(lojaPor(arg), true)}` : telaRede();
+  else if (ehRede()) html = nome === "metas" ? telaMetas() : nome === "loja" && lojaPor(arg) ? `${cabeca(tituloLoja(lojaPor(arg)), { voltar: true, sub: `${lojaPor(arg).n} de ${lojaPor(arg).N} dias fechados` })}${painelLoja(lojaPor(arg), true)}` : telaRede();
   else html = nome === "lancar" ? telaLancar() : telaGerente();
   if (html === null) return desenhar();
   const abas = ehRede() ? [["#/", "Visão geral", nome === "inicio" || nome === "loja"], ["#/metas", "Metas", nome === "metas"], ["#/avisos", "Avisos", nome === "avisos"]] : null;
